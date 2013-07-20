@@ -1,0 +1,7 @@
+python-neutronclient (2.2.4-1) unstable; urgency=low
+
+  * Initial release.
+  * Note that this is a rename of Quantum into Neutron because of a trademark
+    problem.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 20 Jul 2013 20:21:03 +0800

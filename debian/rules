@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+
+#export DH_VERBOSE=1
+
+include /usr/share/openstack-pkg-tools/pkgos.make
+
+export OSLO_PACKAGE_VERSION=$(VERSION)
+
+%:
+	dh $@ --with python2
+
+override_dh_auto_build:
+	echo $(VERSION) >neutronclient/versioninfo
+	dh_auto_install
+
+ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
+override_dh_auto_test:
+	#rm neutronclient/tests/unit/test_cli20_network.py
+	nosetests
+endif
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -f neutronclient/versioninfo
