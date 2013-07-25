@@ -1,3 +1,10 @@
+python-neutronclient (2.2.4-2) UNRELEASED; urgency=low
+
+  * Added missing python-pbr build-depends.
+  * Cleans python_neutronclient.egg-info (package can build twice).
+
+ -- Thomas Goirand <zigo@debian.org>  Thu, 25 Jul 2013 17:46:57 +0800
+
 python-neutronclient (2.2.4-1) unstable; urgency=low
 
   * Initial release.

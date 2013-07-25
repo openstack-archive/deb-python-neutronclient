@@ -21,4 +21,4 @@ endif
 
 override_dh_auto_clean:
 	dh_auto_clean
-	rm -f neutronclient/versioninfo
+	rm -rf neutronclient/versioninfo python_neutronclient.egg-info
