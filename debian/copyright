@@ -7,6 +7,15 @@ Copyright: 2011 Citrix Systems
            2011, Nicira Networks, Inc.
            2010 OpenStack, LLC
            2001-2010 Twisted Matrix Laboratories.
+           2012-2013, OpenStack Foundation
+           2011-2013, United States Government
+           2011-2013, Administrator of the NASA
+           2011-2013, Justin Santa Barbara
+           2011-2013, Red Hat, Inc.
+           2011-2013, Mirantis Inc.
+           2011-2013, Hewlett-Packard Development Company, L.P.
+           2011-2013, NEC Corporation
+           2011-2013, Yahoo! Inc.
 License: Apache-2.0
 
 Files: debian/*
