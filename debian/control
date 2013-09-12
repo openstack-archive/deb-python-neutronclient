@@ -20,7 +20,8 @@ Build-Depends-Indep: cliff-tablib,
                      python-nose,
                      python-prettytable,
                      python-pyparsing (>= 1.5.7+dfsg1-1~),
-                     python-simplejson
+                     python-simplejson,
+                     python-six
 Standards-Version: 3.9.3
 Homepage: http://launchpad.net/python-neutronclient
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-neutronclient.git;a=summary
@@ -39,6 +40,7 @@ Depends: python-argparse,
          python-prettytable,
          python-pyparsing (>= 1.5.7+dfsg1-1~),
          python-simplejson,
+         python-six,
          ${misc:Depends},
          ${python:Depends},
          ${shlibs:Depends}
