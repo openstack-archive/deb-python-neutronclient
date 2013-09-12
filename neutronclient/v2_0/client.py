@@ -118,6 +118,7 @@ class Client(object):
     :param string password: Password for authentication. (optional)
     :param string token: Token for authentication. (optional)
     :param string tenant_name: Tenant name. (optional)
+    :param string tenant_id: Tenant id. (optional)
     :param string auth_url: Keystone service endpoint for authorization.
     :param string endpoint_type: Network service endpoint type to pull from the
                                  keystone catalog (e.g. 'publicURL',
@@ -130,7 +131,8 @@ class Client(object):
                             instantiation.(optional)
     :param integer timeout: Allows customization of the timeout for client
                             http requests. (optional)
-    :param insecure: ssl certificate validation. (optional)
+    :param bool insecure: SSL certificate validation. (optional)
+    :param string ca_cert: SSL CA bundle file to use. (optional)
 
     Example::
 
@@ -163,6 +165,14 @@ class Client(object):
     security_group_path = "/security-groups/%s"
     security_group_rules_path = "/security-group-rules"
     security_group_rule_path = "/security-group-rules/%s"
+    vpnservices_path = "/vpn/vpnservices"
+    vpnservice_path = "/vpn/vpnservices/%s"
+    ipsecpolicies_path = "/vpn/ipsecpolicies"
+    ipsecpolicy_path = "/vpn/ipsecpolicies/%s"
+    ikepolicies_path = "/vpn/ikepolicies"
+    ikepolicy_path = "/vpn/ikepolicies/%s"
+    ipsec_site_connections_path = "/vpn/ipsec-site-connections"
+    ipsec_site_connection_path = "/vpn/ipsec-site-connections/%s"
     vips_path = "/lb/vips"
     vip_path = "/lb/vips/%s"
     pools_path = "/lb/pools"
@@ -181,11 +191,31 @@ class Client(object):
     agent_path = "/agents/%s"
     network_gateways_path = "/network-gateways"
     network_gateway_path = "/network-gateways/%s"
+    service_providers_path = "/service-providers"
+    credentials_path = "/credentials"
+    credential_path = "/credentials/%s"
+    network_profiles_path = "/network_profiles"
+    network_profile_path = "/network_profiles/%s"
+    network_profile_bindings_path = "/network_profile_bindings"
+    policy_profiles_path = "/policy_profiles"
+    policy_profile_path = "/policy_profiles/%s"
+    policy_profile_bindings_path = "/policy_profile_bindings"
 
     DHCP_NETS = '/dhcp-networks'
     DHCP_AGENTS = '/dhcp-agents'
     L3_ROUTERS = '/l3-routers'
     L3_AGENTS = '/l3-agents'
+    LOADBALANCER_POOLS = '/loadbalancer-pools'
+    LOADBALANCER_AGENT = '/loadbalancer-agent'
+    firewall_rules_path = "/fw/firewall_rules"
+    firewall_rule_path = "/fw/firewall_rules/%s"
+    firewall_policies_path = "/fw/firewall_policies"
+    firewall_policy_path = "/fw/firewall_policies/%s"
+    firewall_policy_insert_path = "/fw/firewall_policies/%s/insert_rule"
+    firewall_policy_remove_path = "/fw/firewall_policies/%s/remove_rule"
+    firewalls_path = "/fw/firewalls"
+    firewall_path = "/fw/firewalls/%s"
+
     # API has no way to report plurals, so we have to hard code them
     EXTED_PLURALS = {'routers': 'router',
                      'floatingips': 'floatingip',
@@ -193,11 +223,19 @@ class Client(object):
                      'service_definitions': 'service_definition',
                      'security_groups': 'security_group',
                      'security_group_rules': 'security_group_rule',
+                     'ipsecpolicies': 'ipsecpolicy',
+                     'ikepolicies': 'ikepolicy',
+                     'ipsec_site_connections': 'ipsec_site_connection',
+                     'vpnservices': 'vpnservice',
                      'vips': 'vip',
                      'pools': 'pool',
                      'members': 'member',
                      'health_monitors': 'health_monitor',
                      'quotas': 'quota',
+                     'service_providers': 'service_provider',
+                     'firewall_rules': 'firewall_rule',
+                     'firewall_policies': 'firewall_policy',
+                     'firewalls': 'firewall',
                      }
     # 8192 Is the default max URI len for eventlet.wsgi.server
     MAX_URI_LEN = 8192
@@ -463,6 +501,118 @@ class Client(object):
                         params=_params)
 
     @APIParamsCall
+    def list_vpnservices(self, retrieve_all=True, **_params):
+        """Fetches a list of all configured VPNServices for a tenant."""
+        return self.list('vpnservices', self.vpnservices_path, retrieve_all,
+                         **_params)
+
+    @APIParamsCall
+    def show_vpnservice(self, vpnservice, **_params):
+        """Fetches information of a specific VPNService."""
+        return self.get(self.vpnservice_path % (vpnservice), params=_params)
+
+    @APIParamsCall
+    def create_vpnservice(self, body=None):
+        """Creates a new VPNService."""
+        return self.post(self.vpnservices_path, body=body)
+
+    @APIParamsCall
+    def update_vpnservice(self, vpnservice, body=None):
+        """Updates a VPNService."""
+        return self.put(self.vpnservice_path % (vpnservice), body=body)
+
+    @APIParamsCall
+    def delete_vpnservice(self, vpnservice):
+        """Deletes the specified VPNService."""
+        return self.delete(self.vpnservice_path % (vpnservice))
+
+    @APIParamsCall
+    def list_ipsec_site_connections(self, retrieve_all=True, **_params):
+        """Fetches all configured IPsecSiteConnections for a tenant."""
+        return self.list('ipsec_site_connections',
+                         self.ipsec_site_connections_path,
+                         retrieve_all,
+                         **_params)
+
+    @APIParamsCall
+    def show_ipsec_site_connection(self, ipsecsite_conn, **_params):
+        """Fetches information of a specific IPsecSiteConnection."""
+        return self.get(
+            self.ipsec_site_connection_path % (ipsecsite_conn), params=_params
+        )
+
+    @APIParamsCall
+    def create_ipsec_site_connection(self, body=None):
+        """Creates a new IPsecSiteConnection."""
+        return self.post(self.ipsec_site_connections_path, body=body)
+
+    @APIParamsCall
+    def update_ipsec_site_connection(self, ipsecsite_conn, body=None):
+        """Updates an IPsecSiteConnection."""
+        return self.put(
+            self.ipsec_site_connection_path % (ipsecsite_conn), body=body
+        )
+
+    @APIParamsCall
+    def delete_ipsec_site_connection(self, ipsecsite_conn):
+        """Deletes the specified IPsecSiteConnection."""
+        return self.delete(self.ipsec_site_connection_path % (ipsecsite_conn))
+
+    @APIParamsCall
+    def list_ikepolicies(self, retrieve_all=True, **_params):
+        """Fetches a list of all configured IKEPolicies for a tenant."""
+        return self.list('ikepolicies', self.ikepolicies_path, retrieve_all,
+                         **_params)
+
+    @APIParamsCall
+    def show_ikepolicy(self, ikepolicy, **_params):
+        """Fetches information of a specific IKEPolicy."""
+        return self.get(self.ikepolicy_path % (ikepolicy), params=_params)
+
+    @APIParamsCall
+    def create_ikepolicy(self, body=None):
+        """Creates a new IKEPolicy."""
+        return self.post(self.ikepolicies_path, body=body)
+
+    @APIParamsCall
+    def update_ikepolicy(self, ikepolicy, body=None):
+        """Updates an IKEPolicy."""
+        return self.put(self.ikepolicy_path % (ikepolicy), body=body)
+
+    @APIParamsCall
+    def delete_ikepolicy(self, ikepolicy):
+        """Deletes the specified IKEPolicy."""
+        return self.delete(self.ikepolicy_path % (ikepolicy))
+
+    @APIParamsCall
+    def list_ipsecpolicies(self, retrieve_all=True, **_params):
+        """Fetches a list of all configured IPsecPolicies for a tenant."""
+        return self.list('ipsecpolicies',
+                         self.ipsecpolicies_path,
+                         retrieve_all,
+                         **_params)
+
+    @APIParamsCall
+    def show_ipsecpolicy(self, ipsecpolicy, **_params):
+        """Fetches information of a specific IPsecPolicy."""
+        return self.get(self.ipsecpolicy_path % (ipsecpolicy), params=_params)
+
+    @APIParamsCall
+    def create_ipsecpolicy(self, body=None):
+        """Creates a new IPsecPolicy."""
+        return self.post(self.ipsecpolicies_path, body=body)
+
+    @APIParamsCall
+    def update_ipsecpolicy(self, ipsecpolicy, body=None):
+        """Updates an IPsecPolicy."""
+        return self.put(self.ipsecpolicy_path % (ipsecpolicy), body=body)
+
+    @APIParamsCall
+    def delete_ipsecpolicy(self, ipsecpolicy):
+        """Deletes the specified IPsecPolicy."""
+        return self.delete(self.ipsecpolicy_path % (ipsecpolicy))
+
+    @APIParamsCall
     def list_vips(self, retrieve_all=True, **_params):
         """Fetches a list of all load balancer vips for a tenant."""
         # Pass filters in "params" argument to do_request
@@ -711,10 +861,201 @@ class Client(object):
                          body=body)
 
     @APIParamsCall
+    def list_firewall_rules(self, retrieve_all=True, **_params):
+        """Fetches a list of all firewall rules for a tenant."""
+        # Pass filters in "params" argument to do_request
+
+        return self.list('firewall_rules', self.firewall_rules_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_firewall_rule(self, firewall_rule, **_params):
+        """Fetches information of a certain firewall rule."""
+        return self.get(self.firewall_rule_path % (firewall_rule),
+                        params=_params)
+
+    @APIParamsCall
+    def create_firewall_rule(self, body=None):
+        """Creates a new firewall rule."""
+        return self.post(self.firewall_rules_path, body=body)
+
+    @APIParamsCall
+    def update_firewall_rule(self, firewall_rule, body=None):
+        """Updates a firewall rule."""
+        return self.put(self.firewall_rule_path % (firewall_rule), body=body)
+
+    @APIParamsCall
+    def delete_firewall_rule(self, firewall_rule):
+        """Deletes the specified firewall rule."""
+        return self.delete(self.firewall_rule_path % (firewall_rule))
+
+    @APIParamsCall
+    def list_firewall_policies(self, retrieve_all=True, **_params):
+        """Fetches a list of all firewall policies for a tenant."""
+        # Pass filters in "params" argument to do_request
+
+        return self.list('firewall_policies', self.firewall_policies_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_firewall_policy(self, firewall_policy, **_params):
+        """Fetches information of a certain firewall policy."""
+        return self.get(self.firewall_policy_path % (firewall_policy),
+                        params=_params)
+
+    @APIParamsCall
+    def create_firewall_policy(self, body=None):
+        """Creates a new firewall policy."""
+        return self.post(self.firewall_policies_path, body=body)
+
+    @APIParamsCall
+    def update_firewall_policy(self, firewall_policy, body=None):
+        """Updates a firewall policy."""
+        return self.put(self.firewall_policy_path % (firewall_policy),
+                        body=body)
+
+    @APIParamsCall
+    def delete_firewall_policy(self, firewall_policy):
+        """Deletes the specified firewall policy."""
+        return self.delete(self.firewall_policy_path % (firewall_policy))
+
+    @APIParamsCall
+    def firewall_policy_insert_rule(self, firewall_policy, body=None):
+        """Inserts specified rule into firewall policy."""
+        return self.put(self.firewall_policy_insert_path % (firewall_policy),
+                        body=body)
+
+    @APIParamsCall
+    def firewall_policy_remove_rule(self, firewall_policy, body=None):
+        """Removes specified rule from firewall policy."""
+        return self.put(self.firewall_policy_remove_path % (firewall_policy),
+                        body=body)
+
+    @APIParamsCall
+    def list_firewalls(self, retrieve_all=True, **_params):
+        """Fetches a list of all firewals for a tenant."""
+        # Pass filters in "params" argument to do_request
+
+        return self.list('firewalls', self.firewalls_path, retrieve_all,
+                         **_params)
+
+    @APIParamsCall
+    def show_firewall(self, firewall, **_params):
+        """Fetches information of a certain firewall."""
+        return self.get(self.firewall_path % (firewall), params=_params)
+
+    @APIParamsCall
+    def create_firewall(self, body=None):
+        """Creates a new firewall."""
+        return self.post(self.firewalls_path, body=body)
+
+    @APIParamsCall
+    def update_firewall(self, firewall, body=None):
+        """Updates a firewall."""
+        return self.put(self.firewall_path % (firewall), body=body)
+
+    @APIParamsCall
+    def delete_firewall(self, firewall):
+        """Deletes the specified firewall."""
+        return self.delete(self.firewall_path % (firewall))
+
+    @APIParamsCall
     def remove_router_from_l3_agent(self, l3_agent, router_id):
         """Remove a router from l3 agent."""
         return self.delete((self.agent_path + self.L3_ROUTERS + "/%s") % (
             l3_agent, router_id))
+
+    @APIParamsCall
+    def get_lbaas_agent_hosting_pool(self, pool, **_params):
+        """Fetches a loadbalancer agent hosting a pool."""
+        return self.get((self.pool_path + self.LOADBALANCER_AGENT) % pool,
+                        params=_params)
+
+    @APIParamsCall
+    def list_pools_on_lbaas_agent(self, lbaas_agent, **_params):
+        """Fetches a list of pools hosted by the loadbalancer agent."""
+        return self.get((self.agent_path + self.LOADBALANCER_POOLS) %
+                        lbaas_agent, params=_params)
+
+    @APIParamsCall
+    def list_service_providers(self, retrieve_all=True, **_params):
+        """Fetches service providers."""
+        # Pass filters in "params" argument to do_request
+        return self.list('service_providers', self.service_providers_path,
+                         retrieve_all, **_params)
+
+    def list_credentials(self, **_params):
+        """Fetch a list of all credentials for a tenant."""
+        return self.get(self.credentials_path, params=_params)
+
+    @APIParamsCall
+    def show_credential(self, credential, **_params):
+        """Fetch a credential."""
+        return self.get(self.credential_path % (credential), params=_params)
+
+    @APIParamsCall
+    def create_credential(self, body=None):
+        """Create a new credential."""
+        return self.post(self.credentials_path, body=body)
+
+    @APIParamsCall
+    def update_credential(self, credential, body=None):
+        """Update a credential."""
+        return self.put(self.credential_path % (credential), body=body)
+
+    @APIParamsCall
+    def delete_credential(self, credential):
+        """Delete the specified credential."""
+        return self.delete(self.credential_path % (credential))
+
+    def list_network_profile_bindings(self, **params):
+        """Fetch a list of all tenants associated for a network profile."""
+        return self.get(self.network_profile_bindings_path, params=params)
+
+    @APIParamsCall
+    def list_network_profiles(self, **params):
+        """Fetch a list of all network profiles for a tenant."""
+        return self.get(self.network_profiles_path, params=params)
+
+    @APIParamsCall
+    def show_network_profile(self, profile, **params):
+        """Fetch a network profile."""
+        return self.get(self.network_profile_path % (profile), params=params)
+
+    @APIParamsCall
+    def create_network_profile(self, body=None):
+        """Create a network profile."""
+        return self.post(self.network_profiles_path, body=body)
+
+    @APIParamsCall
+    def update_network_profile(self, profile, body=None):
+        """Update a network profile."""
+        return self.put(self.network_profile_path % (profile), body=body)
+
+    @APIParamsCall
+    def delete_network_profile(self, profile):
+        """Delete the network profile."""
+        return self.delete(self.network_profile_path % profile)
+
+    @APIParamsCall
+    def list_policy_profile_bindings(self, **params):
+        """Fetch a list of all tenants associated for a policy profile."""
+        return self.get(self.policy_profile_bindings_path, params=params)
+
+    @APIParamsCall
+    def list_policy_profiles(self, **params):
+        """Fetch a list of all network profiles for a tenant."""
+        return self.get(self.policy_profiles_path, params=params)
+
+    @APIParamsCall
+    def show_policy_profile(self, profile, **params):
+        """Fetch a network profile."""
+        return self.get(self.policy_profile_path % (profile), params=params)
+
+    @APIParamsCall
+    def update_policy_profile(self, profile, body=None):
+        """Update a policy profile."""
+        return self.put(self.policy_profile_path % (profile), body=body)
 
     def __init__(self, **kwargs):
         """Initialize a new client for the Neutron v2.0 API."""

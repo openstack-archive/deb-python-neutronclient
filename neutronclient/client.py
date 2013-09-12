@@ -94,15 +94,18 @@ class HTTPClient(httplib2.Http):
 
     USER_AGENT = 'python-neutronclient'
 
-    def __init__(self, username=None, tenant_name=None,
+    def __init__(self, username=None, tenant_name=None, tenant_id=None,
                  password=None, auth_url=None,
                  token=None, region_name=None, timeout=None,
                  endpoint_url=None, insecure=False,
                  endpoint_type='publicURL',
-                 auth_strategy='keystone', **kwargs):
-        super(HTTPClient, self).__init__(timeout=timeout)
+                 auth_strategy='keystone', ca_cert=None, log_credentials=False,
+                 **kwargs):
+        super(HTTPClient, self).__init__(timeout=timeout, ca_certs=ca_cert)
+
         self.username = username
         self.tenant_name = tenant_name
+        self.tenant_id = tenant_id
         self.password = password
         self.auth_url = auth_url.rstrip('/') if auth_url else None
         self.endpoint_type = endpoint_type
@@ -111,8 +114,8 @@ class HTTPClient(httplib2.Http):
         self.content_type = 'application/json'
         self.endpoint_url = endpoint_url
         self.auth_strategy = auth_strategy
+        self.log_credentials = log_credentials
         # httplib2 overrides
-        self.force_exception_to_status_code = True
         self.disable_ssl_certificate_validation = insecure
 
     def _cs_request(self, *args, **kwargs):
@@ -131,8 +134,22 @@ class HTTPClient(httplib2.Http):
             kargs['body'] = kwargs['body']
         args = utils.safe_encode_list(args)
         kargs = utils.safe_encode_dict(kargs)
-        utils.http_log_req(_logger, args, kargs)
-        resp, body = self.request(*args, **kargs)
+
+        if self.log_credentials:
+            log_kargs = kargs
+        else:
+            log_kargs = self._strip_credentials(kargs)
+
+        utils.http_log_req(_logger, args, log_kargs)
+        try:
+            resp, body = self.request(*args, **kargs)
+        except httplib2.SSLHandshakeError as e:
+            raise exceptions.SslCertificateValidationError(reason=e)
+        except Exception as e:
+            # Wrap the low-level connection error (socket timeout, redirect
+            # limit, decompression error, etc) into our custom high-level
+            # connection exception (it is excepted in the upper layers of code)
+            raise exceptions.ConnectionFailed(reason=e)
         utils.http_log_resp(_logger, resp, body)
         status_code = self.get_status_code(resp)
         if status_code == 401:
@@ -140,6 +157,15 @@ class HTTPClient(httplib2.Http):
         elif status_code == 403:
             raise exceptions.Forbidden(message=body)
         return resp, body
+
+    def _strip_credentials(self, kwargs):
+        if kwargs.get('body') and self.password:
+            log_kwargs = kwargs.copy()
+            log_kwargs['body'] = kwargs['body'].replace(self.password,
+                                                        'REDACTED')
+            return log_kwargs
+        else:
+            return kwargs
 
     def authenticate_and_fetch_endpoint_url(self):
         if not self.auth_token:
@@ -176,17 +202,24 @@ class HTTPClient(httplib2.Http):
             self.auth_user_id = sc.get('user_id')
         except KeyError:
             raise exceptions.Unauthorized()
-        self.endpoint_url = self.service_catalog.url_for(
-            attr='region', filter_value=self.region_name,
-            endpoint_type=self.endpoint_type)
+        if not self.endpoint_url:
+            self.endpoint_url = self.service_catalog.url_for(
+                attr='region', filter_value=self.region_name,
+                endpoint_type=self.endpoint_type)
 
     def authenticate(self):
         if self.auth_strategy != 'keystone':
             raise exceptions.Unauthorized(message='unknown auth strategy')
-        body = {'auth': {'passwordCredentials':
-                         {'username': self.username,
-                          'password': self.password, },
-                         'tenantName': self.tenant_name, }, }
+        if self.tenant_id:
+            body = {'auth': {'passwordCredentials':
+                             {'username': self.username,
+                              'password': self.password, },
+                             'tenantId': self.tenant_id, }, }
+        else:
+            body = {'auth': {'passwordCredentials':
+                             {'username': self.username,
+                              'password': self.password, },
+                             'tenantName': self.tenant_name, }, }
 
         token_url = self.auth_url + "/tokens"
 

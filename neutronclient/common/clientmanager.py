@@ -55,7 +55,9 @@ class ClientManager(object):
                  region_name=None,
                  api_version=None,
                  auth_strategy=None,
-                 insecure=False
+                 insecure=False,
+                 ca_cert=None,
+                 log_credentials=False,
                  ):
         self._token = token
         self._url = url
@@ -70,17 +72,23 @@ class ClientManager(object):
         self._service_catalog = None
         self._auth_strategy = auth_strategy
         self._insecure = insecure
+        self._ca_cert = ca_cert
+        self._log_credentials = log_credentials
         return
 
     def initialize(self):
         if not self._url:
-            httpclient = client.HTTPClient(username=self._username,
-                                           tenant_name=self._tenant_name,
-                                           password=self._password,
-                                           region_name=self._region_name,
-                                           auth_url=self._auth_url,
-                                           endpoint_type=self._endpoint_type,
-                                           insecure=self._insecure)
+            httpclient = client.HTTPClient(
+                username=self._username,
+                tenant_name=self._tenant_name,
+                tenant_id=self._tenant_id,
+                password=self._password,
+                region_name=self._region_name,
+                auth_url=self._auth_url,
+                endpoint_type=self._endpoint_type,
+                insecure=self._insecure,
+                ca_cert=self._ca_cert,
+                log_credentials=self._log_credentials)
             httpclient.authenticate()
             # Populate other password flow attributes
             self._token = httpclient.auth_token

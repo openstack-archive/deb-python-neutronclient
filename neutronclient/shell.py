@@ -32,20 +32,31 @@ from neutronclient.common import exceptions as exc
 from neutronclient.common import utils
 from neutronclient.neutron.v2_0 import agent
 from neutronclient.neutron.v2_0 import agentscheduler
+from neutronclient.neutron.v2_0 import credential
 from neutronclient.neutron.v2_0 import extension
 from neutronclient.neutron.v2_0 import floatingip
+from neutronclient.neutron.v2_0.fw import firewall
+from neutronclient.neutron.v2_0.fw import firewallpolicy
+from neutronclient.neutron.v2_0.fw import firewallrule
 from neutronclient.neutron.v2_0.lb import healthmonitor as lb_healthmonitor
 from neutronclient.neutron.v2_0.lb import member as lb_member
 from neutronclient.neutron.v2_0.lb import pool as lb_pool
 from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import network
+from neutronclient.neutron.v2_0 import networkprofile
 from neutronclient.neutron.v2_0 import nvp_qos_queue
 from neutronclient.neutron.v2_0 import nvpnetworkgateway
+from neutronclient.neutron.v2_0 import policyprofile
 from neutronclient.neutron.v2_0 import port
 from neutronclient.neutron.v2_0 import quota
 from neutronclient.neutron.v2_0 import router
 from neutronclient.neutron.v2_0 import securitygroup
+from neutronclient.neutron.v2_0 import servicetype
 from neutronclient.neutron.v2_0 import subnet
+from neutronclient.neutron.v2_0.vpn import ikepolicy
+from neutronclient.neutron.v2_0.vpn import ipsec_site_connection
+from neutronclient.neutron.v2_0.vpn import ipsecpolicy
+from neutronclient.neutron.v2_0.vpn import vpnservice
 from neutronclient.openstack.common import strutils
 from neutronclient.version import __version__
 
@@ -68,7 +79,7 @@ def run_command(cmd, cmd_parser, sub_argv):
 
 
 def env(*_vars, **kwargs):
-    """Search for the first defined of possibly many env vars
+    """Search for the first defined of possibly many env vars.
 
     Returns the first environment variable defined in vars, or
     returns the default defined in kwargs.
@@ -177,6 +188,68 @@ COMMAND_V2 = {
     'l3-agent-router-remove': agentscheduler.RemoveRouterFromL3Agent,
     'router-list-on-l3-agent': agentscheduler.ListRoutersOnL3Agent,
     'l3-agent-list-hosting-router': agentscheduler.ListL3AgentsHostingRouter,
+    'lb-pool-list-on-agent': agentscheduler.ListPoolsOnLbaasAgent,
+    'lb-agent-hosting-pool': agentscheduler.GetLbaasAgentHostingPool,
+    'service-provider-list': servicetype.ListServiceProvider,
+    'firewall-rule-list': firewallrule.ListFirewallRule,
+    'firewall-rule-show': firewallrule.ShowFirewallRule,
+    'firewall-rule-create': firewallrule.CreateFirewallRule,
+    'firewall-rule-update': firewallrule.UpdateFirewallRule,
+    'firewall-rule-delete': firewallrule.DeleteFirewallRule,
+    'firewall-policy-list': firewallpolicy.ListFirewallPolicy,
+    'firewall-policy-show': firewallpolicy.ShowFirewallPolicy,
+    'firewall-policy-create': firewallpolicy.CreateFirewallPolicy,
+    'firewall-policy-update': firewallpolicy.UpdateFirewallPolicy,
+    'firewall-policy-delete': firewallpolicy.DeleteFirewallPolicy,
+    'firewall-policy-insert-rule': firewallpolicy.FirewallPolicyInsertRule,
+    'firewall-policy-remove-rule': firewallpolicy.FirewallPolicyRemoveRule,
+    'firewall-list': firewall.ListFirewall,
+    'firewall-show': firewall.ShowFirewall,
+    'firewall-create': firewall.CreateFirewall,
+    'firewall-update': firewall.UpdateFirewall,
+    'firewall-delete': firewall.DeleteFirewall,
+    'cisco-credential-list': credential.ListCredential,
+    'cisco-credential-show': credential.ShowCredential,
+    'cisco-credential-create': credential.CreateCredential,
+    'cisco-credential-delete': credential.DeleteCredential,
+    'cisco-network-profile-list': networkprofile.ListNetworkProfile,
+    'cisco-network-profile-show': networkprofile.ShowNetworkProfile,
+    'cisco-network-profile-create': networkprofile.CreateNetworkProfile,
+    'cisco-network-profile-delete': networkprofile.DeleteNetworkProfile,
+    'cisco-network-profile-update': networkprofile.UpdateNetworkProfile,
+    'cisco-policy-profile-list': policyprofile.ListPolicyProfile,
+    'cisco-policy-profile-show': policyprofile.ShowPolicyProfile,
+    'cisco-policy-profile-update': policyprofile.UpdatePolicyProfile,
+    'ipsec-site-connection-list': (
+        ipsec_site_connection.ListIPsecSiteConnection
+    ),
+    'ipsec-site-connection-show': (
+        ipsec_site_connection.ShowIPsecSiteConnection
+    ),
+    'ipsec-site-connection-create': (
+        ipsec_site_connection.CreateIPsecSiteConnection
+    ),
+    'ipsec-site-connection-update': (
+        ipsec_site_connection.UpdateIPsecSiteConnection
+    ),
+    'ipsec-site-connection-delete': (
+        ipsec_site_connection.DeleteIPsecSiteConnection
+    ),
+    'vpn-service-list': vpnservice.ListVPNService,
+    'vpn-service-show': vpnservice.ShowVPNService,
+    'vpn-service-create': vpnservice.CreateVPNService,
+    'vpn-service-update': vpnservice.UpdateVPNService,
+    'vpn-service-delete': vpnservice.DeleteVPNService,
+    'vpn-ipsecpolicy-list': ipsecpolicy.ListIPsecPolicy,
+    'vpn-ipsecpolicy-show': ipsecpolicy.ShowIPsecPolicy,
+    'vpn-ipsecpolicy-create': ipsecpolicy.CreateIPsecPolicy,
+    'vpn-ipsecpolicy-update': ipsecpolicy.UpdateIPsecPolicy,
+    'vpn-ipsecpolicy-delete': ipsecpolicy.DeleteIPsecPolicy,
+    'vpn-ikepolicy-list': ikepolicy.ListIKEPolicy,
+    'vpn-ikepolicy-show': ikepolicy.ShowIKEPolicy,
+    'vpn-ikepolicy-create': ikepolicy.CreateIKEPolicy,
+    'vpn-ikepolicy-update': ikepolicy.UpdateIKEPolicy,
+    'vpn-ikepolicy-delete': ikepolicy.DeleteIKEPolicy,
 }
 
 COMMANDS = {'2.0': COMMAND_V2}
@@ -296,6 +369,11 @@ class NeutronShell(app.App):
             help=argparse.SUPPRESS)
 
         parser.add_argument(
+            '--os-tenant-id', metavar='<auth-tenant-id>',
+            default=env('OS_TENANT_ID'),
+            help='Authentication tenant name (Env: OS_TENANT_ID)')
+
+        parser.add_argument(
             '--os-username', metavar='<auth-username>',
             default=utils.env('OS_USERNAME'),
             help='Authentication username (Env: OS_USERNAME)')
@@ -339,6 +417,14 @@ class NeutronShell(app.App):
         parser.add_argument(
             '--os_url',
             help=argparse.SUPPRESS)
+
+        parser.add_argument(
+            '--os-cacert',
+            metavar='<ca-certificate>',
+            default=env('OS_CACERT', default=None),
+            help="Specify a CA bundle file to use in "
+                 "verifying a TLS (https) server certificate. "
+                 "Defaults to env[OS_CACERT]")
 
         parser.add_argument(
             '--insecure',
@@ -482,10 +568,12 @@ class NeutronShell(app.App):
                         "You must provide a password via"
                         " either --os-password or env[OS_PASSWORD]")
 
-                if not (self.options.os_tenant_name):
+                if (not self.options.os_tenant_name
+                    and not self.options.os_tenant_id):
                     raise exc.CommandError(
-                        "You must provide a tenant_name via"
-                        " either --os-tenant-name or via env[OS_TENANT_NAME]")
+                        "You must provide a tenant_name or tenant_id via"
+                        "  --os-tenant-name, env[OS_TENANT_NAME]"
+                        "  --os-tenant-id, or via env[OS_TENANT_ID]")
 
                 if not self.options.os_auth_url:
                     raise exc.CommandError(
@@ -502,13 +590,16 @@ class NeutronShell(app.App):
             url=self.options.os_url,
             auth_url=self.options.os_auth_url,
             tenant_name=self.options.os_tenant_name,
+            tenant_id=self.options.os_tenant_id,
             username=self.options.os_username,
             password=self.options.os_password,
             region_name=self.options.os_region_name,
             api_version=self.api_version,
             auth_strategy=self.options.os_auth_strategy,
             endpoint_type=self.options.endpoint_type,
-            insecure=self.options.insecure, )
+            insecure=self.options.insecure,
+            ca_cert=self.options.os_cacert,
+            log_credentials=True)
         return
 
     def initialize_app(self, argv):
@@ -537,8 +628,7 @@ class NeutronShell(app.App):
             self.log.debug('got an error: %s', unicode(err))
 
     def configure_logging(self):
-        """Create logging handlers for any log output.
-        """
+        """Create logging handlers for any log output."""
         root_logger = logging.getLogger('')
 
         # Set up logging to a file
