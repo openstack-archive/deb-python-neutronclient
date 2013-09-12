@@ -16,7 +16,8 @@ override_dh_auto_build:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
 	#rm neutronclient/tests/unit/test_cli20_network.py
-	nosetests
+	#nosetests
+	python setup.py testr
 endif
 
 override_dh_auto_clean:
