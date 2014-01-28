@@ -1,7 +1,6 @@
 python-neutronclient (2.3.0-3) UNRELEASED; urgency=low
 
   * Added --slowest --testr-args='--subunit  ' when calling testr.
-  * Updated VCS field to git.gplhost.com.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 20 Nov 2013 20:23:49 +0800
 
