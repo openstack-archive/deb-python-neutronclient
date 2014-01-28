@@ -25,7 +25,7 @@ Build-Depends-Indep: cliff-tablib,
                      python-subunit,
                      python-testtools (>= 0.9.32),
                      testrepository (>= 0.0.17)
-Standards-Version: 3.9.3
+Standards-Version: 3.9.5
 Homepage: http://launchpad.net/python-neutronclient
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-neutronclient.git;a=summary
 Vcs-Git: git://anonscm.debian.org/openstack/python-neutronclient.git
