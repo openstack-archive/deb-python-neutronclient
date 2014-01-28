@@ -1,3 +1,9 @@
+python-neutronclient (2.3.3-2) unstable; urgency=medium
+
+  * Removes the man page thing which doesn't build in Wheezy.
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 28 Jan 2014 09:34:45 +0000
+
 python-neutronclient (2.3.3-1) unstable; urgency=medium
 
   * New upstream release.
