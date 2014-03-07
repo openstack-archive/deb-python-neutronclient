@@ -1,6 +1,8 @@
 python-neutronclient (2.3.4-1) unstable; urgency=medium
 
   * New upstream release.
+  * Removed fixed-get_auth_info-for-pre-authenticated-clients.patch applied
+    upstream.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 07 Mar 2014 15:57:07 +0800
 
