@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 import argparse
 import logging
@@ -49,7 +48,7 @@ def _format_host_routes(subnet):
 
 
 class ListSubnet(neutronV20.ListCommand):
-    """List networks that belong to a given tenant."""
+    """List subnets that belong to a given tenant."""
 
     resource = 'subnet'
     log = logging.getLogger(__name__ + '.ListSubnet')

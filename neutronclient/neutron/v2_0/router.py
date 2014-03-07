@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 import argparse
 import logging
@@ -70,7 +69,7 @@ class CreateRouter(neutronV20.CreateCommand):
             help=_('Name of router to create'))
         parser.add_argument(
             'distributed', action='store_true',
-            help=_('Create a distributed router (Nicira plugin only)'))
+            help=_('Create a distributed router (VMware NSX plugin only)'))
 
     def args2body(self, parsed_args):
         body = {'router': {

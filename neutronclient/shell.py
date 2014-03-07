@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 """
 Command-line interface to the Neutron APIs
@@ -45,8 +44,8 @@ from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import metering
 from neutronclient.neutron.v2_0 import network
 from neutronclient.neutron.v2_0 import networkprofile
-from neutronclient.neutron.v2_0 import nvp_qos_queue
-from neutronclient.neutron.v2_0 import nvpnetworkgateway
+from neutronclient.neutron.v2_0.nsx import networkgateway
+from neutronclient.neutron.v2_0.nsx import qos_queue
 from neutronclient.neutron.v2_0 import policyprofile
 from neutronclient.neutron.v2_0 import port
 from neutronclient.neutron.v2_0 import quota
@@ -167,21 +166,21 @@ COMMAND_V2 = {
     'lb-healthmonitor-disassociate': (
         lb_healthmonitor.DisassociateHealthMonitor
     ),
-    'queue-create': nvp_qos_queue.CreateQoSQueue,
-    'queue-delete': nvp_qos_queue.DeleteQoSQueue,
-    'queue-show': nvp_qos_queue.ShowQoSQueue,
-    'queue-list': nvp_qos_queue.ListQoSQueue,
+    'queue-create': qos_queue.CreateQoSQueue,
+    'queue-delete': qos_queue.DeleteQoSQueue,
+    'queue-show': qos_queue.ShowQoSQueue,
+    'queue-list': qos_queue.ListQoSQueue,
     'agent-list': agent.ListAgent,
     'agent-show': agent.ShowAgent,
     'agent-delete': agent.DeleteAgent,
     'agent-update': agent.UpdateAgent,
-    'net-gateway-create': nvpnetworkgateway.CreateNetworkGateway,
-    'net-gateway-update': nvpnetworkgateway.UpdateNetworkGateway,
-    'net-gateway-delete': nvpnetworkgateway.DeleteNetworkGateway,
-    'net-gateway-show': nvpnetworkgateway.ShowNetworkGateway,
-    'net-gateway-list': nvpnetworkgateway.ListNetworkGateway,
-    'net-gateway-connect': nvpnetworkgateway.ConnectNetworkGateway,
-    'net-gateway-disconnect': nvpnetworkgateway.DisconnectNetworkGateway,
+    'net-gateway-create': networkgateway.CreateNetworkGateway,
+    'net-gateway-update': networkgateway.UpdateNetworkGateway,
+    'net-gateway-delete': networkgateway.DeleteNetworkGateway,
+    'net-gateway-show': networkgateway.ShowNetworkGateway,
+    'net-gateway-list': networkgateway.ListNetworkGateway,
+    'net-gateway-connect': networkgateway.ConnectNetworkGateway,
+    'net-gateway-disconnect': networkgateway.DisconnectNetworkGateway,
     'dhcp-agent-network-add': agentscheduler.AddNetworkToDhcpAgent,
     'dhcp-agent-network-remove': agentscheduler.RemoveNetworkFromDhcpAgent,
     'net-list-on-dhcp-agent': agentscheduler.ListNetworksOnDhcpAgent,
@@ -292,6 +291,10 @@ class HelpAction(argparse.Action):
 
 class NeutronShell(app.App):
 
+    # verbose logging levels
+    WARNING_LEVEL = 0
+    INFO_LEVEL = 1
+    DEBUG_LEVEL = 2
     CONSOLE_MESSAGE_FORMAT = '%(message)s'
     DEBUG_MESSAGE_FORMAT = '%(levelname)s: %(name)s %(message)s'
     log = logging.getLogger(__name__)
@@ -329,11 +332,12 @@ class NeutronShell(app.App):
             action='version',
             version=__version__, )
         parser.add_argument(
-            '-v', '--verbose',
+            '-v', '--verbose', '--debug',
             action='count',
             dest='verbose_level',
             default=self.DEFAULT_VERBOSE_LEVEL,
-            help=_('Increase verbosity of output. Can be repeated.'))
+            help=_('Increase verbosity of output and show tracebacks on'
+                   ' errors. Can be repeated.'))
         parser.add_argument(
             '-q', '--quiet',
             action='store_const',
@@ -346,11 +350,6 @@ class NeutronShell(app.App):
             nargs=0,
             default=self,  # tricky
             help=_("Show this help message and exit"))
-        parser.add_argument(
-            '--debug',
-            default=False,
-            action='store_true',
-            help=_('Show tracebacks on errors'))
         # Global arguments
         parser.add_argument(
             '--os-auth-strategy', metavar='<auth-strategy>',
@@ -496,7 +495,7 @@ class NeutronShell(app.App):
             self.interactive_mode = not remainder
             self.initialize_app(remainder)
         except Exception as err:
-            if self.options.debug:
+            if self.options.verbose_level == self.DEBUG_LEVEL:
                 self.log.exception(unicode(err))
                 raise
             else:
@@ -526,24 +525,24 @@ class NeutronShell(app.App):
             cmd_parser = cmd.get_parser(full_name)
             return run_command(cmd, cmd_parser, sub_argv)
         except Exception as err:
-            if self.options.debug:
+            if self.options.verbose_level == self.DEBUG_LEVEL:
                 self.log.exception(unicode(err))
             else:
                 self.log.error(unicode(err))
             try:
                 self.clean_up(cmd, result, err)
             except Exception as err2:
-                if self.options.debug:
+                if self.options.verbose_level == self.DEBUG_LEVEL:
                     self.log.exception(unicode(err2))
                 else:
                     self.log.error(_('Could not clean up: %s'), unicode(err2))
-            if self.options.debug:
+            if self.options.verbose_level == self.DEBUG_LEVEL:
                 raise
         else:
             try:
                 self.clean_up(cmd, result, None)
             except Exception as err3:
-                if self.options.debug:
+                if self.options.verbose_level == self.DEBUG_LEVEL:
                     self.log.exception(unicode(err3))
                 else:
                     self.log.error(_('Could not clean up: %s'), unicode(err3))
@@ -646,9 +645,9 @@ class NeutronShell(app.App):
 
         # Send higher-level messages to the console via stderr
         console = logging.StreamHandler(self.stderr)
-        console_level = {0: logging.WARNING,
-                         1: logging.INFO,
-                         2: logging.DEBUG,
+        console_level = {self.WARNING_LEVEL: logging.WARNING,
+                         self.INFO_LEVEL: logging.INFO,
+                         self.DEBUG_LEVEL: logging.DEBUG,
                          }.get(self.options.verbose_level, logging.DEBUG)
         console.setLevel(console_level)
         if logging.DEBUG == console_level:

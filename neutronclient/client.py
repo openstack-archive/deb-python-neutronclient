@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 try:
     import json
@@ -21,11 +20,6 @@ except ImportError:
     import simplejson as json
 import logging
 import os
-import urlparse
-# Python 2.5 compat fix
-if not hasattr(urlparse, 'parse_qsl'):
-    import cgi
-    urlparse.parse_qsl = cgi.parse_qsl
 
 import httplib2
 
@@ -35,6 +29,10 @@ from neutronclient.openstack.common.gettextutils import _
 
 _logger = logging.getLogger(__name__)
 
+# httplib2 retries requests on socket.timeout which
+# is not idempotent and can lead to orhan objects.
+# See: https://code.google.com/p/httplib2/issues/detail?id=124
+httplib2.RETRIES = 1
 
 if os.environ.get('NEUTRONCLIENT_DEBUG'):
     ch = logging.StreamHandler()
@@ -112,6 +110,8 @@ class HTTPClient(httplib2.Http):
         self.endpoint_type = endpoint_type
         self.region_name = region_name
         self.auth_token = token
+        self.auth_tenant_id = None
+        self.auth_user_id = None
         self.content_type = 'application/json'
         self.endpoint_url = endpoint_url
         self.auth_strategy = auth_strategy
@@ -234,22 +234,22 @@ class HTTPClient(httplib2.Http):
         tmp_follow_all_redirects = self.follow_all_redirects
         self.follow_all_redirects = True
         try:
-            resp, body = self._cs_request(token_url, "POST",
-                                          body=json.dumps(body),
-                                          content_type="application/json")
+            resp, resp_body = self._cs_request(token_url, "POST",
+                                               body=json.dumps(body),
+                                               content_type="application/json")
         finally:
             self.follow_all_redirects = tmp_follow_all_redirects
         status_code = self.get_status_code(resp)
         if status_code != 200:
-            raise exceptions.Unauthorized(message=body)
-        if body:
+            raise exceptions.Unauthorized(message=resp_body)
+        if resp_body:
             try:
-                body = json.loads(body)
+                resp_body = json.loads(resp_body)
             except ValueError:
                 pass
         else:
-            body = None
-        self._extract_service_catalog(body)
+            resp_body = None
+        self._extract_service_catalog(resp_body)
 
     def _get_endpoint_url(self):
         url = self.auth_url + '/tokens/%s/endpoints' % self.auth_token

@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 import argparse
 import logging
@@ -170,9 +169,9 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
             '--device_id',
             help=argparse.SUPPRESS)
         parser.add_argument(
-            '--fixed-ip', metavar='ip_address=IP_ADDR',
+            '--fixed-ip', metavar='subnet_id=SUBNET,ip_address=IP_ADDR',
             action='append',
-            help=_('Desired IP for this port: '
+            help=_('Desired IP and/or subnet for this port: '
                    'subnet_id=<name_or_id>,ip_address=<ip>, '
                    '(This option can be repeated.)'))
         parser.add_argument(
