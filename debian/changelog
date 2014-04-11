@@ -3,6 +3,7 @@ python-neutronclient (2.3.4-2) unstable; urgency=low
   * This version of neutronclient needs python-httplib2 >= 0.7.5. Fixed the
     (build-)depends accordingly. Also fixed more (build-)depends versions.
     (Closes: #744129)
+  * Runs testr/subunit correctly.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 11 Apr 2014 13:24:11 +0800
 
