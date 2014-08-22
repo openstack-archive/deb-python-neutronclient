@@ -120,10 +120,6 @@ HTTP_EXCEPTION_MAP = {
 class NetworkNotFoundClient(NotFound):
     pass
 
-# Exceptions mapped to Neutron server exceptions
-# These are defined if a user of client library needs specific exception.
-# Exception name should be <Neutron Exception Name> + 'Client'
-# e.g., NetworkNotFound -> NetworkNotFoundClient
 
 class PortNotFoundClient(NotFound):
     pass
@@ -201,14 +197,10 @@ class ConnectionFailed(NeutronClientException):
 class SslCertificateValidationError(NeutronClientException):
     message = _("SSL certificate validation has failed: %(reason)s")
 
-class MalformedResponseBody(NeutronClientException):
-    message = _("Malformed response body: %(reason)s")
 
 class MalformedResponseBody(NeutronClientException):
     message = _("Malformed response body: %(reason)s")
 
-class InvalidContentType(NeutronClientException):
-    message = _("Invalid content type %(content_type)s.")
 
 class InvalidContentType(NeutronClientException):
     message = _("Invalid content type %(content_type)s.")

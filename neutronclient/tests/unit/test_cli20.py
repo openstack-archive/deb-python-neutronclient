@@ -19,8 +19,6 @@ import cStringIO
 import sys
 import urllib
 
-import contextlib
-import cStringIO
 import fixtures
 from mox3 import mox
 from oslotest import base
