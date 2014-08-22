@@ -1,6 +1,7 @@
 python-neutronclient (2.3.6-1) unstable; urgency=medium
 
   * New upstream release.
+  * New (build-)depends for this release (python-mox3)
 
  -- Mehdi Abaakouk <sileht@sileht.net>  Fri, 22 Aug 2014 15:43:56 +0200
 
