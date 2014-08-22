@@ -1,3 +1,9 @@
+python-neutronclient (2.3.6-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Mehdi Abaakouk <sileht@sileht.net>  Fri, 22 Aug 2014 15:43:56 +0200
+
 python-neutronclient (2.3.5-1) unstable; urgency=medium
 
   * New upstream release.
