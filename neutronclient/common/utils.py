@@ -23,6 +23,8 @@ import logging
 import os
 import sys
 
+import six
+
 from neutronclient.common import _
 from neutronclient.common import exceptions
 from neutronclient.openstack.common import strutils
@@ -48,7 +50,7 @@ def to_primitive(value):
         return o
     elif isinstance(value, dict):
         o = {}
-        for k, v in value.iteritems():
+        for k, v in six.iteritems(value):
             o[k] = to_primitive(v)
         return o
     elif isinstance(value, datetime.datetime):
@@ -172,13 +174,13 @@ def http_log_req(_logger, args, kwargs):
     if 'body' in kwargs and kwargs['body']:
         string_parts.append(" -d '%s'" % (kwargs['body']))
     string_parts = safe_encode_list(string_parts)
-    _logger.debug(_("\nREQ: %s\n"), "".join(string_parts))
+    _logger.debug("\nREQ: %s\n", "".join(string_parts))
 
 
 def http_log_resp(_logger, resp, body):
     if not _logger.isEnabledFor(logging.DEBUG):
         return
-    _logger.debug(_("RESP:%(code)s %(headers)s %(body)s\n"),
+    _logger.debug("RESP:%(code)s %(headers)s %(body)s\n",
                   {'code': resp.status_code,
                    'headers': resp.headers,
                    'body': body})

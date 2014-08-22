@@ -14,15 +14,18 @@
 #    under the License.
 #
 
+import contextlib
+import cStringIO
+import sys
 import urllib
 
 import contextlib
 import cStringIO
 import fixtures
-import mox
+from mox3 import mox
+from oslotest import base
 import requests
-import sys
-import testtools
+import six
 
 from neutronclient.common import constants
 from neutronclient.common import exceptions
@@ -112,7 +115,7 @@ class MyComparator(mox.Comparator):
     def _com_dict(self, lhs, rhs):
         if len(lhs) != len(rhs):
             return False
-        for key, value in lhs.iteritems():
+        for key, value in six.iteritems(lhs):
             if key not in rhs:
                 return False
             rhs_value = rhs[key]
@@ -156,7 +159,7 @@ class MyComparator(mox.Comparator):
         return str(self.lhs)
 
 
-class CLITestV20Base(testtools.TestCase):
+class CLITestV20Base(base.BaseTestCase):
 
     format = 'json'
     test_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
@@ -604,6 +607,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
             ('IpAddressInUse', exceptions.IpAddressInUseClient, 409),
             ('IpAddressGenerationFailure',
              exceptions.IpAddressGenerationFailureClient, 409),
+            ('MacAddressInUse', exceptions.MacAddressInUseClient, 409),
             ('ExternalIpAddressExhausted',
              exceptions.ExternalIpAddressExhaustedClient, 400),
             ('OverQuota', exceptions.OverQuotaClient, 409),

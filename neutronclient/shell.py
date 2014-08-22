@@ -446,6 +446,12 @@ class NeutronShell(app.App):
             help=_('Defaults to env[OS_NETWORK_SERVICE_TYPE] or network.'))
 
         parser.add_argument(
+            '--timeout', metavar='<seconds>',
+            default=env('OS_NETWORK_TIMEOUT', default=None), type=float,
+            help=_('Timeout in seconds to wait for an HTTP response. Defaults '
+                   'to env[OS_NETWORK_TIMEOUT] or None if not specified.'))
+
+        parser.add_argument(
             '--endpoint-type', metavar='<endpoint-type>',
             default=env('OS_ENDPOINT_TYPE', default='publicURL'),
             help=_('Defaults to env[OS_ENDPOINT_TYPE] or publicURL.'))
@@ -643,6 +649,7 @@ class NeutronShell(app.App):
             endpoint_type=self.options.endpoint_type,
             insecure=self.options.insecure,
             ca_cert=self.options.os_cacert,
+            timeout=self.options.timeout,
             log_credentials=True)
         return
 
@@ -669,7 +676,7 @@ class NeutronShell(app.App):
     def clean_up(self, cmd, result, err):
         self.log.debug('clean_up %s', cmd.__class__.__name__)
         if err:
-            self.log.debug(_('Got an error: %s'), unicode(err))
+            self.log.debug('Got an error: %s', unicode(err))
 
     def configure_logging(self):
         """Create logging handlers for any log output."""
@@ -689,6 +696,7 @@ class NeutronShell(app.App):
             formatter = logging.Formatter(self.DEBUG_MESSAGE_FORMAT)
         else:
             formatter = logging.Formatter(self.CONSOLE_MESSAGE_FORMAT)
+        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
         console.setFormatter(formatter)
         root_logger.addHandler(console)
         return
