@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutronclient.common import _
+from neutronclient.i18n import _
 
 """
 Neutron base exception handling.
@@ -30,12 +30,11 @@ Exceptions are classified into three categories:
 
 
 class NeutronException(Exception):
-    """Base Neutron Exception
+    """Base Neutron Exception.
 
     To correctly use this class, inherit from it and define
     a 'message' property. That message will get printf'd
     with the keyword arguments provided to the constructor.
-
     """
     message = _("An unknown exception occurred.")
 
@@ -141,6 +140,10 @@ class IpAddressInUseClient(Conflict):
     pass
 
 
+class InvalidIpForNetworkClient(BadRequest):
+    pass
+
+
 class OverQuotaClient(Conflict):
     pass
 
@@ -218,8 +221,8 @@ class CommandError(NeutronCLIError):
 
 
 class UnsupportedVersion(NeutronCLIError):
-    """Indicates that the user is trying to use an unsupported
-       version of the API
+    """Indicates that the user is trying to use an unsupported version of
+    the API.
     """
     pass
 

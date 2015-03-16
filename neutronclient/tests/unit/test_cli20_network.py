@@ -13,12 +13,13 @@
 #    under the License.
 #
 
+import itertools
 import sys
 
 from mox3 import mox
+from oslo.serialization import jsonutils
 
 from neutronclient.common import exceptions
-from neutronclient.common import utils
 from neutronclient.neutron.v2_0 import network
 from neutronclient import shell
 from neutronclient.tests.unit import test_cli20
@@ -71,6 +72,24 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values,
                                    tenant_id='tenantid')
 
+    def test_create_network_provider_args(self):
+        """Create net: with --provider arguments."""
+        resource = 'network'
+        cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+
+        # Test --provider attributes before network name
+        args = ['--provider:network_type', 'vlan',
+                '--provider:physical_network', 'physnet1',
+                '--provider:segmentation_id', '400', name]
+        position_names = ['provider:network_type',
+                          'provider:physical_network',
+                          'provider:segmentation_id', 'name']
+        position_values = ['vlan', 'physnet1', '400', name]
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values)
+
     def test_create_network_tags(self):
         """Create net: myname --tags a b."""
         resource = 'network'
@@ -83,6 +102,20 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self._test_create_resource(resource, cmd, name, myid, args,
                                    position_names, position_values,
                                    tags=['a', 'b'])
+
+    def test_create_network_external(self):
+        """Create net: --router:external myname."""
+        resource = 'network'
+        cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+        args = [name, '--router:external']
+        position_names = ['name', ]
+        position_values = [name, ]
+        external = {'router:external': True}
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values,
+                                   **external)
 
     def test_create_network_state(self):
         """Create net: --admin_state_down myname."""
@@ -118,7 +151,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         args = ['-c', 'id', '--', '--id', 'myfakeid']
         path = getattr(self.client, resources + "_path")
         self.client.httpclient.request(
-            test_cli20.end_url(path, query), 'GET',
+            test_cli20.MyUrlComparator(test_cli20.end_url(path, query),
+                                       self.client),
+            'GET',
             body=None,
             headers=mox.ContainsKeyValue(
                 'X-Auth-Token',
@@ -132,9 +167,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         _str = self.fake_stdout.make_string()
         self.assertEqual('\n', _str)
 
-    def _test_list_networks(self, cmd, detail=False, tags=[],
-                            fields_1=[], fields_2=[], page_size=None,
-                            sort_key=[], sort_dir=[]):
+    def _test_list_networks(self, cmd, detail=False, tags=(),
+                            fields_1=(), fields_2=(), page_size=None,
+                            sort_key=(), sort_dir=()):
         resources = "networks"
         self.mox.StubOutWithMock(network.ListNetwork, "extend_list")
         network.ListNetwork.extend_list(mox.IsA(list), mox.IgnoreArg())
@@ -202,7 +237,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
             resp = (test_cli20.MyResp(200), resstr)
             path = getattr(self.client, resources + '_path')
             self.client.httpclient.request(
-                test_cli20.end_url(path, query), 'GET',
+                test_cli20.MyUrlComparator(
+                    test_cli20.end_url(path, query), self.client),
+                'GET',
                 body=None,
                 headers=mox.ContainsKeyValue(
                     'X-Auth-Token', test_cli20.TOKEN)).AndReturn(resp)
@@ -262,7 +299,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                  fields_1=['a', 'b'], fields_2=['c', 'd'])
 
     def _test_list_nets_columns(self, cmd, returned_body,
-                                args=['-f', 'json']):
+                                args=('-f', 'json')):
         resources = 'networks'
         self.mox.StubOutWithMock(network.ListNetwork, "extend_list")
         network.ListNetwork.extend_list(mox.IsA(list), mox.IgnoreArg())
@@ -277,11 +314,11 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self._test_list_nets_columns(cmd, returned_body,
                                      args=['-f', 'json', '-c', 'id'])
         _str = self.fake_stdout.make_string()
-        returned_networks = utils.loads(_str)
+        returned_networks = jsonutils.loads(_str)
         self.assertEqual(1, len(returned_networks))
         net = returned_networks[0]
         self.assertEqual(1, len(net))
-        self.assertEqual("id", net.keys()[0])
+        self.assertIn("id", net.keys())
 
     def test_list_nets_with_default_column(self):
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
@@ -291,7 +328,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                        "subnets": []}]}
         self._test_list_nets_columns(cmd, returned_body)
         _str = self.fake_stdout.make_string()
-        returned_networks = utils.loads(_str)
+        returned_networks = jsonutils.loads(_str)
         self.assertEqual(1, len(returned_networks))
         net = returned_networks[0]
         self.assertEqual(3, len(net))
@@ -312,7 +349,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         args = ['-c', 'id', '--', '--id', 'myfakeid']
         path = getattr(self.client, resources + "_path")
         self.client.httpclient.request(
-            test_cli20.end_url(path, query), 'GET',
+            test_cli20.MyUrlComparator(
+                test_cli20.end_url(path, query), self.client),
+            'GET',
             body=None,
             headers=mox.ContainsKeyValue(
                 'X-Auth-Token',
@@ -327,8 +366,8 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self.assertEqual('\n', _str)
 
     def _test_list_external_nets(self, resources, cmd,
-                                 detail=False, tags=[],
-                                 fields_1=[], fields_2=[]):
+                                 detail=False, tags=(),
+                                 fields_1=(), fields_2=()):
         self.mox.StubOutWithMock(cmd, "get_client")
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         self.mox.StubOutWithMock(network.ListNetwork, "extend_list")
@@ -357,8 +396,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
             args.append("--fields")
             for field in fields_2:
                 args.append(field)
-        fields_1.extend(fields_2)
-        for field in fields_1:
+        for field in itertools.chain(fields_1, fields_2):
             if query:
                 query += "&fields=" + field
             else:
@@ -377,7 +415,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         path = getattr(self.client, resources + "_path")
 
         self.client.httpclient.request(
-            test_cli20.end_url(path, query), 'GET',
+            test_cli20.MyUrlComparator(
+                test_cli20.end_url(path, query), self.client),
+            'GET',
             body=None,
             headers=mox.ContainsKeyValue('X-Auth-Token', test_cli20.TOKEN)
         ).AndReturn((test_cli20.MyResp(200), resstr))
@@ -496,7 +536,8 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         def mox_calls(path, data):
             filters, response = self._build_test_data(data)
             self.client.httpclient.request(
-                test_cli20.end_url(path, 'fields=id&fields=cidr' + filters),
+                test_cli20.MyUrlComparator(test_cli20.end_url(
+                    path, 'fields=id&fields=cidr' + filters), self.client),
                 'GET',
                 body=None,
                 headers=mox.ContainsKeyValue(
@@ -510,16 +551,20 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
             filters, response = self._build_test_data(data)
 
             # 1 char of extra URI len will cause a split in 2 requests
-            self.mox.StubOutWithMock(self.client, "_check_uri_length")
-            self.client._check_uri_length(mox.IgnoreArg()).AndRaise(
+            self.mox.StubOutWithMock(self.client.httpclient,
+                                     "_check_uri_length")
+            self.client.httpclient._check_uri_length(mox.IgnoreArg()).AndRaise(
                 exceptions.RequestURITooLong(excess=1))
 
             for data in sub_data_lists:
                 filters, response = self._build_test_data(data)
-                self.client._check_uri_length(mox.IgnoreArg()).AndReturn(None)
+                self.client.httpclient._check_uri_length(
+                    mox.IgnoreArg()).AndReturn(None)
                 self.client.httpclient.request(
-                    test_cli20.end_url(path,
-                                       'fields=id&fields=cidr%s' % filters),
+                    test_cli20.MyUrlComparator(
+                        test_cli20.end_url(
+                            path, 'fields=id&fields=cidr%s' % filters),
+                        self.client),
                     'GET',
                     body=None,
                     headers=mox.ContainsKeyValue(

@@ -16,20 +16,20 @@
 # @author: Swaminathan Vasudevan, Hewlett-Packard.
 #
 
-import logging
+from oslo.serialization import jsonutils
 
 from neutronclient.common import exceptions
 from neutronclient.common import utils
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
 from neutronclient.neutron.v2_0.vpn import utils as vpn_utils
-from neutronclient.openstack.common.gettextutils import _
 
 
 def _format_peer_cidrs(ipsec_site_connection):
     try:
-        return '\n'.join([utils.dumps(cidrs) for cidrs in
+        return '\n'.join([jsonutils.dumps(cidrs) for cidrs in
                           ipsec_site_connection['peer_cidrs']])
-    except Exception:
+    except (TypeError, KeyError):
         return ''
 
 
@@ -37,7 +37,6 @@ class ListIPsecSiteConnection(neutronv20.ListCommand):
     """List IPsec site connections that belong to a given tenant."""
 
     resource = 'ipsec_site_connection'
-    log = logging.getLogger(__name__ + '.ListIPsecSiteConnection')
     _formatters = {'peer_cidrs': _format_peer_cidrs}
     list_columns = [
         'id', 'name', 'peer_address', 'peer_cidrs', 'route_mode',
@@ -50,13 +49,11 @@ class ShowIPsecSiteConnection(neutronv20.ShowCommand):
     """Show information of a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
-    log = logging.getLogger(__name__ + '.ShowIPsecSiteConnection')
 
 
 class CreateIPsecSiteConnection(neutronv20.CreateCommand):
     """Create an IPsec site connection."""
     resource = 'ipsec_site_connection'
-    log = logging.getLogger(__name__ + '.CreateIPsecSiteConnection')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -165,7 +162,6 @@ class UpdateIPsecSiteConnection(neutronv20.UpdateCommand):
     """Update a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
-    log = logging.getLogger(__name__ + '.UpdateIPsecSiteConnection')
 
     def add_known_arguments(self, parser):
 
@@ -189,4 +185,3 @@ class DeleteIPsecSiteConnection(neutronv20.DeleteCommand):
     """Delete a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
-    log = logging.getLogger(__name__ + '.DeleteIPsecSiteConnection')

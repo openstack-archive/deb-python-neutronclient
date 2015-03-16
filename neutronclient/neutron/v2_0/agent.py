@@ -14,15 +14,14 @@
 #    under the License.
 #
 
-import logging
-
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 
 def _format_timestamp(component):
     try:
         return component['heartbeat_timestamp'].split(".", 2)[0]
-    except Exception:
+    except (TypeError, KeyError):
         return ''
 
 
@@ -30,7 +29,6 @@ class ListAgent(neutronV20.ListCommand):
     """List agents."""
 
     resource = 'agent'
-    log = logging.getLogger(__name__ + '.ListAgent')
     list_columns = ['id', 'agent_type', 'host', 'alive', 'admin_state_up',
                     'binary']
     _formatters = {'heartbeat_timestamp': _format_timestamp}
@@ -46,7 +44,6 @@ class ShowAgent(neutronV20.ShowCommand):
     """Show information of a given agent."""
 
     resource = 'agent'
-    log = logging.getLogger(__name__ + '.ShowAgent')
     allow_names = False
     json_indent = 5
 
@@ -54,14 +51,30 @@ class ShowAgent(neutronV20.ShowCommand):
 class DeleteAgent(neutronV20.DeleteCommand):
     """Delete a given agent."""
 
-    log = logging.getLogger(__name__ + '.DeleteAgent')
     resource = 'agent'
     allow_names = False
 
 
 class UpdateAgent(neutronV20.UpdateCommand):
-    """Update a given agent."""
+    """Updates the admin status and description for a specified agent."""
 
-    log = logging.getLogger(__name__ + '.UpdateAgent')
     resource = 'agent'
     allow_names = False
+
+    def add_known_arguments(self, parser):
+        parser.add_argument(
+            '--admin-state-down',
+            dest='admin_state',
+            action='store_false',
+            help=_('Set admin state up of the agent to false.'))
+        parser.add_argument(
+            '--description',
+            help=_('Description for the agent.'))
+
+    def args2body(self, parsed_args):
+        body = {
+            self.resource: {
+                'admin_state_up': parsed_args.admin_state, }, }
+        neutronV20.update_dict(parsed_args, body[self.resource],
+                               ['description'])
+        return body

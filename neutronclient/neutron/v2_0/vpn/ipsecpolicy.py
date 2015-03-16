@@ -15,19 +15,16 @@
 #
 # @author: Swaminathan Vasudevan, Hewlett-Packard.
 
-import logging
-
 from neutronclient.common import utils
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
 from neutronclient.neutron.v2_0.vpn import utils as vpn_utils
-from neutronclient.openstack.common.gettextutils import _
 
 
 class ListIPsecPolicy(neutronv20.ListCommand):
-    """List ipsecpolicies that belongs to a given tenant connection."""
+    """List IPsec policies that belong to a given tenant connection."""
 
     resource = 'ipsecpolicy'
-    log = logging.getLogger(__name__ + '.ListIPsecPolicy')
     list_columns = ['id', 'name', 'auth_algorithm',
                     'encryption_algorithm', 'pfs']
     _formatters = {}
@@ -39,14 +36,12 @@ class ShowIPsecPolicy(neutronv20.ShowCommand):
     """Show information of a given IPsec policy."""
 
     resource = 'ipsecpolicy'
-    log = logging.getLogger(__name__ + '.ShowIPsecPolicy')
 
 
 class CreateIPsecPolicy(neutronv20.CreateCommand):
     """Create an IPsec policy."""
 
     resource = 'ipsecpolicy'
-    log = logging.getLogger(__name__ + '.CreateIPsecPolicy')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -108,7 +103,6 @@ class UpdateIPsecPolicy(neutronv20.UpdateCommand):
     """Update a given IPsec policy."""
 
     resource = 'ipsecpolicy'
-    log = logging.getLogger(__name__ + '.UpdateIPsecPolicy')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -131,4 +125,3 @@ class DeleteIPsecPolicy(neutronv20.DeleteCommand):
     """Delete a given IPsec policy."""
 
     resource = 'ipsecpolicy'
-    log = logging.getLogger(__name__ + '.DeleteIPsecPolicy')

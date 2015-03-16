@@ -1,5 +1,9 @@
 # Copyright 2013 Mirantis Inc.
+# Copyright 2014 Blue Box Group, Inc.
 # All Rights Reserved
+#
+# Author: Ilya Shakhat, Mirantis Inc.
+# Author: Craig Tracey <craigtracey@gmail.com>
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -13,35 +17,33 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# @author: Ilya Shakhat, Mirantis Inc.
-#
-
-from __future__ import print_function
 
 from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 
 class ListHealthMonitor(neutronV20.ListCommand):
-    """List health monitors that belong to a given tenant."""
+    """LBaaS v2 List healthmonitors that belong to a given tenant."""
 
-    resource = 'health_monitor'
+    resource = 'healthmonitor'
+    shadow_resource = 'lbaas_healthmonitor'
     list_columns = ['id', 'type', 'admin_state_up']
     pagination_support = True
     sorting_support = True
 
 
 class ShowHealthMonitor(neutronV20.ShowCommand):
-    """Show information of a given health monitor."""
+    """LBaaS v2 Show information of a given healthmonitor."""
 
-    resource = 'health_monitor'
-    allow_names = False
+    resource = 'healthmonitor'
+    shadow_resource = 'lbaas_healthmonitor'
 
 
 class CreateHealthMonitor(neutronV20.CreateCommand):
-    """Create a health monitor."""
+    """LBaaS v2 Create a healthmonitor."""
 
-    resource = 'health_monitor'
+    resource = 'healthmonitor'
+    shadow_resource = 'lbaas_healthmonitor'
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -73,7 +75,7 @@ class CreateHealthMonitor(neutronV20.CreateCommand):
             '--max-retries',
             required=True,
             help=_('Number of permissible connection failures before changing '
-                   'the member status to INACTIVE. [1..10]'))
+                   'the member status to INACTIVE. [1..10].'))
         parser.add_argument(
             '--timeout',
             required=True,
@@ -102,69 +104,15 @@ class CreateHealthMonitor(neutronV20.CreateCommand):
 
 
 class UpdateHealthMonitor(neutronV20.UpdateCommand):
-    """Update a given health monitor."""
+    """LBaaS v2 Update a given healthmonitor."""
 
-    resource = 'health_monitor'
+    resource = 'healthmonitor'
+    shadow_resource = 'lbaas_healthmonitor'
     allow_names = False
 
 
 class DeleteHealthMonitor(neutronV20.DeleteCommand):
-    """Delete a given health monitor."""
+    """LBaaS v2 Delete a given healthmonitor."""
 
-    resource = 'health_monitor'
-    allow_names = False
-
-
-class AssociateHealthMonitor(neutronV20.NeutronCommand):
-    """Create a mapping between a health monitor and a pool."""
-
-    resource = 'health_monitor'
-
-    def get_parser(self, prog_name):
-        parser = super(AssociateHealthMonitor, self).get_parser(prog_name)
-        parser.add_argument(
-            'health_monitor_id', metavar='HEALTH_MONITOR_ID',
-            help=_('Health monitor to associate.'))
-        parser.add_argument(
-            'pool_id', metavar='POOL',
-            help=_('ID of the pool to be associated with the health monitor.'))
-        return parser
-
-    def run(self, parsed_args):
-        neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
-        body = {'health_monitor': {'id': parsed_args.health_monitor_id}}
-        pool_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, 'pool', parsed_args.pool_id)
-        neutron_client.associate_health_monitor(pool_id, body)
-        print((_('Associated health monitor '
-                 '%s') % parsed_args.health_monitor_id),
-              file=self.app.stdout)
-
-
-class DisassociateHealthMonitor(neutronV20.NeutronCommand):
-    """Remove a mapping from a health monitor to a pool."""
-
-    resource = 'health_monitor'
-
-    def get_parser(self, prog_name):
-        parser = super(DisassociateHealthMonitor, self).get_parser(prog_name)
-        parser.add_argument(
-            'health_monitor_id', metavar='HEALTH_MONITOR_ID',
-            help=_('Health monitor to associate.'))
-        parser.add_argument(
-            'pool_id', metavar='POOL',
-            help=_('ID of the pool to be associated with the health monitor.'))
-        return parser
-
-    def run(self, parsed_args):
-        neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
-        pool_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, 'pool', parsed_args.pool_id)
-        neutron_client.disassociate_health_monitor(pool_id,
-                                                   parsed_args
-                                                   .health_monitor_id)
-        print((_('Disassociated health monitor '
-                 '%s') % parsed_args.health_monitor_id),
-              file=self.app.stdout)
+    resource = 'healthmonitor'
+    shadow_resource = 'lbaas_healthmonitor'

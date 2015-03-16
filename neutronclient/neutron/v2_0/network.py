@@ -15,18 +15,17 @@
 #
 
 import argparse
-import logging
 
 from neutronclient.common import exceptions
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
-from neutronclient.openstack.common.gettextutils import _
 
 
 def _format_subnets(network):
     try:
         return '\n'.join([' '.join([s['id'], s.get('cidr', '')])
                           for s in network['subnets']])
-    except Exception:
+    except (TypeError, KeyError):
         return ''
 
 
@@ -37,7 +36,6 @@ class ListNetwork(neutronV20.ListCommand):
     # id=<uuid>& (with len(uuid)=36)
     subnet_id_filter_len = 40
     resource = 'network'
-    log = logging.getLogger(__name__ + '.ListNetwork')
     _formatters = {'subnets': _format_subnets, }
     list_columns = ['id', 'name', 'subnets']
     pagination_support = True
@@ -70,7 +68,7 @@ class ListNetwork(neutronV20.ListCommand):
             subnet_count = len(subnet_ids)
             max_size = ((self.subnet_id_filter_len * subnet_count) -
                         uri_len_exc.excess)
-            chunk_size = max_size / self.subnet_id_filter_len
+            chunk_size = max_size // self.subnet_id_filter_len
             subnets = []
             for i in range(0, subnet_count, chunk_size):
                 subnets.extend(
@@ -86,7 +84,6 @@ class ListNetwork(neutronV20.ListCommand):
 class ListExternalNetwork(ListNetwork):
     """List external networks that belong to a given tenant."""
 
-    log = logging.getLogger(__name__ + '.ListExternalNetwork')
     pagination_support = True
     sorting_support = True
 
@@ -101,14 +98,12 @@ class ShowNetwork(neutronV20.ShowCommand):
     """Show information of a given network."""
 
     resource = 'network'
-    log = logging.getLogger(__name__ + '.ShowNetwork')
 
 
 class CreateNetwork(neutronV20.CreateCommand):
     """Create a network for a given tenant."""
 
     resource = 'network'
-    log = logging.getLogger(__name__ + '.CreateNetwork')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -125,6 +120,26 @@ class CreateNetwork(neutronV20.CreateCommand):
             help=_('Set the network as shared.'),
             default=argparse.SUPPRESS)
         parser.add_argument(
+            '--router:external',
+            action='store_true',
+            help=_('Set network as external, it is only available for admin'),
+            default=argparse.SUPPRESS)
+        parser.add_argument(
+            '--provider:network_type',
+            metavar='<network_type>',
+            help=_('The physical mechanism by which the virtual network'
+                   ' is implemented.'))
+        parser.add_argument(
+            '--provider:physical_network',
+            metavar='<physical_network_name>',
+            help=_('Name of the physical network over which the virtual'
+                   ' network is implemented.'))
+        parser.add_argument(
+            '--provider:segmentation_id',
+            metavar='<segmentation_id>',
+            help=_('VLAN ID for VLAN networks or tunnel-id for GRE/VXLAN'
+                   ' networks.'))
+        parser.add_argument(
             'name', metavar='NAME',
             help=_('Name of network to create.'))
 
@@ -133,19 +148,20 @@ class CreateNetwork(neutronV20.CreateCommand):
             'name': parsed_args.name,
             'admin_state_up': parsed_args.admin_state}, }
         neutronV20.update_dict(parsed_args, body['network'],
-                               ['shared', 'tenant_id'])
+                               ['shared', 'tenant_id', 'router:external',
+                                'provider:network_type',
+                                'provider:physical_network',
+                                'provider:segmentation_id'])
         return body
 
 
 class DeleteNetwork(neutronV20.DeleteCommand):
     """Delete a given network."""
 
-    log = logging.getLogger(__name__ + '.DeleteNetwork')
     resource = 'network'
 
 
 class UpdateNetwork(neutronV20.UpdateCommand):
     """Update network's information."""
 
-    log = logging.getLogger(__name__ + '.UpdateNetwork')
     resource = 'network'

@@ -16,17 +16,14 @@
 # @author: Swaminathan Vasudevan, Hewlett-Packard.
 #
 
-import logging
-
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
-from neutronclient.openstack.common.gettextutils import _
 
 
 class ListVPNService(neutronv20.ListCommand):
     """List VPN service configurations that belong to a given tenant."""
 
     resource = 'vpnservice'
-    log = logging.getLogger(__name__ + '.ListVPNService')
     list_columns = [
         'id', 'name', 'router_id', 'status'
     ]
@@ -39,13 +36,11 @@ class ShowVPNService(neutronv20.ShowCommand):
     """Show information of a given VPN service."""
 
     resource = 'vpnservice'
-    log = logging.getLogger(__name__ + '.ShowVPNService')
 
 
 class CreateVPNService(neutronv20.CreateCommand):
     """Create a VPN service."""
     resource = 'vpnservice'
-    log = logging.getLogger(__name__ + '.CreateVPNService')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -87,11 +82,9 @@ class UpdateVPNService(neutronv20.UpdateCommand):
     """Update a given VPN service."""
 
     resource = 'vpnservice'
-    log = logging.getLogger(__name__ + '.UpdateVPNService')
 
 
 class DeleteVPNService(neutronv20.DeleteCommand):
     """Delete a given VPN service."""
 
     resource = 'vpnservice'
-    log = logging.getLogger(__name__ + '.DeleteVPNService')

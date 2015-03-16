@@ -47,31 +47,33 @@ class CLITestV20FirewallPolicyJSON(test_cli20.CLITestV20Base):
                                    admin_state_up=True, tenant_id=tenant_id)
 
     def test_create_firewall_policy_with_all_params(self):
-        """firewall-policy-create with all params set."""
+        """firewall-policy-create with rule param of misc format."""
         resource = 'firewall_policy'
         cmd = firewallpolicy.CreateFirewallPolicy(test_cli20.MyApp(sys.stdout),
                                                   None)
         name = 'my-name'
         description = 'my-desc'
-        firewall_rules_arg = 'rule_id1 rule_id2'
         firewall_rules_res = ['rule_id1', 'rule_id2']
         tenant_id = 'my-tenant'
         my_id = 'myid'
-        args = ['--description', description,
-                '--shared',
-                '--firewall-rules', firewall_rules_arg,
-                '--audited',
-                '--tenant-id', tenant_id,
-                '--admin-state_up',
-                name]
         position_names = ['name', ]
         position_values = [name, ]
-        self._test_create_resource(resource, cmd, name, my_id, args,
-                                   position_names, position_values,
-                                   description=description, shared=True,
-                                   firewall_rules=firewall_rules_res,
-                                   audited=True, admin_state_up=True,
-                                   tenant_id=tenant_id)
+
+        #check for both str and unicode format firewall_rules_arg
+        for firewall_rules_arg in ['rule_id1 rule_id2', u'rule_id1 rule_id2']:
+            args = ['--description', description,
+                    '--shared',
+                    '--firewall-rules', firewall_rules_arg,
+                    '--audited',
+                    '--tenant-id', tenant_id,
+                    '--admin-state_up',
+                    name]
+            self._test_create_resource(resource, cmd, name, my_id, args,
+                                       position_names, position_values,
+                                       description=description, shared=True,
+                                       firewall_rules=firewall_rules_res,
+                                       audited=True, admin_state_up=True,
+                                       tenant_id=tenant_id)
 
     def test_list_firewall_policies(self):
         """firewall-policy-list."""
@@ -130,6 +132,18 @@ class CLITestV20FirewallPolicyJSON(test_cli20.CLITestV20Base):
         self._test_update_resource(resource, cmd, 'myid',
                                    ['myid', '--name', 'newname'],
                                    {'name': 'newname', })
+
+    def test_update_firewall_policy_with_rules(self):
+        """firewall-policy-update myid --firewall-rules "rule1 rule2"."""
+        resource = 'firewall_policy'
+        cmd = firewallpolicy.UpdateFirewallPolicy(test_cli20.MyApp(sys.stdout),
+                                                  None)
+        firewall_rules_arg = u'rule_id3 rule_id4'
+        firewall_rules_res = ['rule_id3', 'rule_id4']
+        self._test_update_resource(
+            resource, cmd, 'myid',
+            ['myid', '--firewall-rules', firewall_rules_arg],
+            {'firewall_rules': firewall_rules_res, })
 
     def test_delete_firewall_policy(self):
         """firewall-policy-delete my-id."""

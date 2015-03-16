@@ -17,17 +17,15 @@
 #
 
 import argparse
-import logging
 
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
-from neutronclient.openstack.common.gettextutils import _
 
 
 class ListFirewall(neutronv20.ListCommand):
     """List firewalls that belong to a given tenant."""
 
     resource = 'firewall'
-    log = logging.getLogger(__name__ + '.ListFirewall')
     list_columns = ['id', 'name', 'firewall_policy_id']
     _formatters = {}
     pagination_support = True
@@ -38,19 +36,17 @@ class ShowFirewall(neutronv20.ShowCommand):
     """Show information of a given firewall."""
 
     resource = 'firewall'
-    log = logging.getLogger(__name__ + '.ShowFirewall')
 
 
 class CreateFirewall(neutronv20.CreateCommand):
     """Create a firewall."""
 
     resource = 'firewall'
-    log = logging.getLogger(__name__ + '.CreateFirewall')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
             'firewall_policy_id', metavar='POLICY',
-            help=_('Firewall policy ID.'))
+            help=_('Firewall policy name or ID.'))
         parser.add_argument(
             '--name',
             help=_('Name for the firewall.'))
@@ -86,11 +82,23 @@ class UpdateFirewall(neutronv20.UpdateCommand):
     """Update a given firewall."""
 
     resource = 'firewall'
-    log = logging.getLogger(__name__ + '.UpdateFirewall')
+
+    def add_known_arguments(self, parser):
+        parser.add_argument(
+            '--policy', metavar='POLICY',
+            help=_('Firewall policy name or ID.'))
+
+    def args2body(self, parsed_args):
+        data = {}
+        if parsed_args.policy:
+            _policy_id = neutronv20.find_resourceid_by_name_or_id(
+                self.get_client(), 'firewall_policy',
+                parsed_args.policy)
+            data['firewall_policy_id'] = _policy_id
+        return {self.resource: data}
 
 
 class DeleteFirewall(neutronv20.DeleteCommand):
     """Delete a given firewall."""
 
     resource = 'firewall'
-    log = logging.getLogger(__name__ + '.DeleteFirewall')

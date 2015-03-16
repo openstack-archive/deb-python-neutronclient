@@ -17,17 +17,15 @@
 from __future__ import print_function
 
 import argparse
-import logging
 
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
-from neutronclient.openstack.common.gettextutils import _
 
 
 class ListFloatingIP(neutronV20.ListCommand):
     """List floating IPs that belong to a given tenant."""
 
     resource = 'floatingip'
-    log = logging.getLogger(__name__ + '.ListFloatingIP')
     list_columns = ['id', 'fixed_ip_address', 'floating_ip_address',
                     'port_id']
     pagination_support = True
@@ -38,7 +36,6 @@ class ShowFloatingIP(neutronV20.ShowCommand):
     """Show information of a given floating IP."""
 
     resource = 'floatingip'
-    log = logging.getLogger(__name__ + '.ShowFloatingIP')
     allow_names = False
 
 
@@ -46,7 +43,6 @@ class CreateFloatingIP(neutronV20.CreateCommand):
     """Create a floating IP for a given tenant."""
 
     resource = 'floatingip'
-    log = logging.getLogger(__name__ + '.CreateFloatingIP')
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -65,6 +61,9 @@ class CreateFloatingIP(neutronV20.CreateCommand):
         parser.add_argument(
             '--fixed_ip_address',
             help=argparse.SUPPRESS)
+        parser.add_argument(
+            '--floating-ip-address',
+            help=_('IP address of the floating IP'))
 
     def args2body(self, parsed_args):
         _network_id = neutronV20.find_resourceid_by_name_or_id(
@@ -77,13 +76,15 @@ class CreateFloatingIP(neutronV20.CreateCommand):
         if parsed_args.fixed_ip_address:
             body[self.resource].update({'fixed_ip_address':
                                         parsed_args.fixed_ip_address})
+        if parsed_args.floating_ip_address:
+            body[self.resource].update({'floating_ip_address':
+                                        parsed_args.floating_ip_address})
         return body
 
 
 class DeleteFloatingIP(neutronV20.DeleteCommand):
     """Delete a given floating IP."""
 
-    log = logging.getLogger(__name__ + '.DeleteFloatingIP')
     resource = 'floatingip'
     allow_names = False
 
@@ -92,7 +93,6 @@ class AssociateFloatingIP(neutronV20.NeutronCommand):
     """Create a mapping between a floating IP and a fixed IP."""
 
     api = 'network'
-    log = logging.getLogger(__name__ + '.AssociateFloatingIP')
     resource = 'floatingip'
 
     def get_parser(self, prog_name):
@@ -133,14 +133,13 @@ class DisassociateFloatingIP(neutronV20.NeutronCommand):
     """
 
     api = 'network'
-    log = logging.getLogger(__name__ + '.DisassociateFloatingIP')
     resource = 'floatingip'
 
     def get_parser(self, prog_name):
         parser = super(DisassociateFloatingIP, self).get_parser(prog_name)
         parser.add_argument(
             'floatingip_id', metavar='FLOATINGIP_ID',
-            help=_('ID of the floating IP to associate.'))
+            help=_('ID of the floating IP to disassociate.'))
         return parser
 
     def run(self, parsed_args):

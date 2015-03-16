@@ -15,11 +15,9 @@
 
 from __future__ import print_function
 
-import logging
-
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 from neutronclient.neutron.v2_0 import parse_args_to_dict
-from neutronclient.openstack.common.gettextutils import _
 
 RESOURCE = 'policy_profile'
 
@@ -28,7 +26,6 @@ class ListPolicyProfile(neutronV20.ListCommand):
     """List policy profiles that belong to a given tenant."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.ListProfile')
     _formatters = {}
     list_columns = ['id', 'name']
 
@@ -37,7 +34,6 @@ class ShowPolicyProfile(neutronV20.ShowCommand):
     """Show information of a given policy profile."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.ShowProfile')
     allow_names = True
 
 
@@ -45,14 +41,12 @@ class UpdatePolicyProfile(neutronV20.UpdateCommand):
     """Update policy profile's information."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.UpdatePolicyProfile')
 
 
 class UpdatePolicyProfileV2(neutronV20.UpdateCommand):
     """Update policy profile's information."""
 
     api = 'network'
-    log = logging.getLogger(__name__ + '.UpdatePolicyProfileV2')
     resource = RESOURCE
 
     def get_parser(self, prog_name):

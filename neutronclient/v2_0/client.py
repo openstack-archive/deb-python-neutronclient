@@ -1,4 +1,5 @@
 # Copyright 2012 OpenStack Foundation.
+# Copyright 2015 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -16,31 +17,29 @@
 
 import logging
 import time
-import urllib
 
 import requests
 import six.moves.urllib.parse as urlparse
 
 from neutronclient import client
-from neutronclient.common import _
 from neutronclient.common import constants
 from neutronclient.common import exceptions
 from neutronclient.common import serializer
 from neutronclient.common import utils
+from neutronclient.i18n import _
 
 
 _logger = logging.getLogger(__name__)
 
 
 def exception_handler_v20(status_code, error_content):
-    """Exception handler for API v2.0 client
+    """Exception handler for API v2.0 client.
 
-        This routine generates the appropriate
-        Neutron exception according to the contents of the
-        response body
+    This routine generates the appropriate Neutron exception according to
+    the contents of the response body.
 
-        :param status_code: HTTP error status code
-        :param error_content: deserialized body of error response
+    :param status_code: HTTP error status code
+    :param error_content: deserialized body of error response
     """
     error_dict = None
     if isinstance(error_content, dict):
@@ -87,8 +86,7 @@ def exception_handler_v20(status_code, error_content):
 
 
 class APIParamsCall(object):
-    """A Decorator to add support for format and tenant overriding
-       and filters
+    """A Decorator to add support for format and tenant overriding and filters.
     """
     def __init__(self, function):
         self.function = function
@@ -104,7 +102,7 @@ class APIParamsCall(object):
         return with_params
 
 
-class Client(object):
+class ClientBase(object):
     """Client for the OpenStack Neutron v2.0 API.
 
     :param string username: Username for authentication. (optional)
@@ -113,6 +111,8 @@ class Client(object):
     :param string token: Token for authentication. (optional)
     :param string tenant_name: Tenant name. (optional)
     :param string tenant_id: Tenant id. (optional)
+    :param string auth_strategy: 'keystone' by default, 'noauth' for no
+                                 authentication against keystone. (optional)
     :param string auth_url: Keystone service endpoint for authorization.
     :param string service_type: Network service type to pull from the
                                 keystone catalog (e.g. 'network') (optional)
@@ -128,7 +128,17 @@ class Client(object):
     :param integer timeout: Allows customization of the timeout for client
                             http requests. (optional)
     :param bool insecure: SSL certificate validation. (optional)
+    :param bool log_credentials: Allow for logging of passwords or not.
+                                 Defaults to False. (optional)
     :param string ca_cert: SSL CA bundle file to use. (optional)
+    :param integer retries: How many times idempotent (GET, PUT, DELETE)
+                            requests to Neutron server should be retried if
+                            they fail (default: 0).
+    :param bool raise_errors: If True then exceptions caused by connection
+                              failure are propagated to the caller.
+                              (default: True)
+    :param session: Keystone client auth session to use. (optional)
+    :param auth: Keystone auth plugin to use. (optional)
 
     Example::
 
@@ -142,6 +152,183 @@ class Client(object):
         ...
 
     """
+
+    # API has no way to report plurals, so we have to hard code them
+    # This variable should be overridden by a child class.
+    EXTED_PLURALS = {}
+
+    def __init__(self, **kwargs):
+        """Initialize a new client for the Neutron v2.0 API."""
+        super(ClientBase, self).__init__()
+        self.retries = kwargs.pop('retries', 0)
+        self.raise_errors = kwargs.pop('raise_errors', True)
+        self.httpclient = client.construct_http_client(**kwargs)
+        self.version = '2.0'
+        self.format = 'json'
+        self.action_prefix = "/v%s" % (self.version)
+        self.retry_interval = 1
+
+    def _handle_fault_response(self, status_code, response_body):
+        # Create exception with HTTP status code and message
+        _logger.debug("Error message: %s", response_body)
+        # Add deserialized error message to exception arguments
+        try:
+            des_error_body = self.deserialize(response_body, status_code)
+        except Exception:
+            # If unable to deserialized body it is probably not a
+            # Neutron error
+            des_error_body = {'message': response_body}
+        # Raise the appropriate exception
+        exception_handler_v20(status_code, des_error_body)
+
+    def do_request(self, method, action, body=None, headers=None, params=None):
+        # Add format and tenant_id
+        action += ".%s" % self.format
+        action = self.action_prefix + action
+        if type(params) is dict and params:
+            params = utils.safe_encode_dict(params)
+            action += '?' + urlparse.urlencode(params, doseq=1)
+
+        if body:
+            body = self.serialize(body)
+
+        resp, replybody = self.httpclient.do_request(
+            action, method, body=body,
+            content_type=self.content_type())
+
+        status_code = resp.status_code
+        if status_code in (requests.codes.ok,
+                           requests.codes.created,
+                           requests.codes.accepted,
+                           requests.codes.no_content):
+            return self.deserialize(replybody, status_code)
+        else:
+            if not replybody:
+                replybody = resp.reason
+            self._handle_fault_response(status_code, replybody)
+
+    def get_auth_info(self):
+        return self.httpclient.get_auth_info()
+
+    def serialize(self, data):
+        """Serializes a dictionary into either XML or JSON.
+
+        A dictionary with a single key can be passed and it can contain any
+        structure.
+        """
+        if data is None:
+            return None
+        elif type(data) is dict:
+            return serializer.Serializer(
+                self.get_attr_metadata()).serialize(data, self.content_type())
+        else:
+            raise Exception(_("Unable to serialize object of type = '%s'") %
+                            type(data))
+
+    def deserialize(self, data, status_code):
+        """Deserializes an XML or JSON string into a dictionary."""
+        if status_code == 204:
+            return data
+        return serializer.Serializer(self.get_attr_metadata()).deserialize(
+            data, self.content_type())['body']
+
+    def get_attr_metadata(self):
+        if self.format == 'json':
+            return {}
+        old_request_format = self.format
+        self.format = 'json'
+        exts = self.list_extensions()['extensions']
+        self.format = old_request_format
+        ns = dict([(ext['alias'], ext['namespace']) for ext in exts])
+        self.EXTED_PLURALS.update(constants.PLURALS)
+        return {'plurals': self.EXTED_PLURALS,
+                'xmlns': constants.XML_NS_V20,
+                constants.EXT_NS: ns}
+
+    def content_type(self, _format=None):
+        """Returns the mime-type for either 'xml' or 'json'.
+
+        Defaults to the currently set format.
+        """
+        _format = _format or self.format
+        return "application/%s" % (_format)
+
+    def retry_request(self, method, action, body=None,
+                      headers=None, params=None):
+        """Call do_request with the default retry configuration.
+
+        Only idempotent requests should retry failed connection attempts.
+        :raises: ConnectionFailed if the maximum # of retries is exceeded
+        """
+        max_attempts = self.retries + 1
+        for i in range(max_attempts):
+            try:
+                return self.do_request(method, action, body=body,
+                                       headers=headers, params=params)
+            except exceptions.ConnectionFailed:
+                # Exception has already been logged by do_request()
+                if i < self.retries:
+                    _logger.debug('Retrying connection to Neutron service')
+                    time.sleep(self.retry_interval)
+                elif self.raise_errors:
+                    raise
+
+        if self.retries:
+            msg = (_("Failed to connect to Neutron server after %d attempts")
+                   % max_attempts)
+        else:
+            msg = _("Failed to connect Neutron server")
+
+        raise exceptions.ConnectionFailed(reason=msg)
+
+    def delete(self, action, body=None, headers=None, params=None):
+        return self.retry_request("DELETE", action, body=body,
+                                  headers=headers, params=params)
+
+    def get(self, action, body=None, headers=None, params=None):
+        return self.retry_request("GET", action, body=body,
+                                  headers=headers, params=params)
+
+    def post(self, action, body=None, headers=None, params=None):
+        # Do not retry POST requests to avoid the orphan objects problem.
+        return self.do_request("POST", action, body=body,
+                               headers=headers, params=params)
+
+    def put(self, action, body=None, headers=None, params=None):
+        return self.retry_request("PUT", action, body=body,
+                                  headers=headers, params=params)
+
+    def list(self, collection, path, retrieve_all=True, **params):
+        if retrieve_all:
+            res = []
+            for r in self._pagination(collection, path, **params):
+                res.extend(r[collection])
+            return {collection: res}
+        else:
+            return self._pagination(collection, path, **params)
+
+    def _pagination(self, collection, path, **params):
+        if params.get('page_reverse', False):
+            linkrel = 'previous'
+        else:
+            linkrel = 'next'
+        next = True
+        while next:
+            res = self.get(path, params=params)
+            yield res
+            next = False
+            try:
+                for link in res['%s_links' % collection]:
+                    if link['rel'] == linkrel:
+                        query_str = urlparse.urlparse(link['href']).query
+                        params = urlparse.parse_qs(query_str)
+                        next = True
+                        break
+            except KeyError:
+                break
+
+
+class Client(ClientBase):
 
     networks_path = "/networks"
     network_path = "/networks/%s"
@@ -169,6 +356,18 @@ class Client(object):
     ikepolicy_path = "/vpn/ikepolicies/%s"
     ipsec_site_connections_path = "/vpn/ipsec-site-connections"
     ipsec_site_connection_path = "/vpn/ipsec-site-connections/%s"
+
+    lbaas_loadbalancers_path = "/lbaas/loadbalancers"
+    lbaas_loadbalancer_path = "/lbaas/loadbalancers/%s"
+    lbaas_listeners_path = "/lbaas/listeners"
+    lbaas_listener_path = "/lbaas/listeners/%s"
+    lbaas_pools_path = "/lbaas/pools"
+    lbaas_pool_path = "/lbaas/pools/%s"
+    lbaas_healthmonitors_path = "/lbaas/healthmonitors"
+    lbaas_healthmonitor_path = "/lbaas/healthmonitors/%s"
+    lbaas_members_path = lbaas_pool_path + "/members"
+    lbaas_member_path = lbaas_pool_path + "/members/%s"
+
     vips_path = "/lb/vips"
     vip_path = "/lb/vips/%s"
     pools_path = "/lb/pools"
@@ -246,27 +445,17 @@ class Client(object):
                      'metering_label_rules': 'metering_label_rule',
                      'net_partitions': 'net_partition',
                      'packet_filters': 'packet_filter',
+                     'loadbalancers': 'loadbalancer',
+                     'listeners': 'listener',
+                     'lbaas_pools': 'lbaas_pool',
+                     'lbaas_healthmonitors': 'lbaas_healthmonitor',
+                     'lbaas_members': 'lbaas_member',
+                     'healthmonitors': 'healthmonitor',
                      }
-    # 8192 Is the default max URI len for eventlet.wsgi.server
-    MAX_URI_LEN = 8192
-
-    def get_attr_metadata(self):
-        if self.format == 'json':
-            return {}
-        old_request_format = self.format
-        self.format = 'json'
-        exts = self.list_extensions()['extensions']
-        self.format = old_request_format
-        ns = dict([(ext['alias'], ext['namespace']) for ext in exts])
-        self.EXTED_PLURALS.update(constants.PLURALS)
-        return {'plurals': self.EXTED_PLURALS,
-                'xmlns': constants.XML_NS_V20,
-                constants.EXT_NS: ns}
 
     @APIParamsCall
     def get_quotas_tenant(self, **_params):
-        """Fetch tenant info in server's context for
-        following quota operation.
+        """Fetch tenant info in server's context for following quota operation.
         """
         return self.get(self.quota_path % 'tenant', params=_params)
 
@@ -621,6 +810,154 @@ class Client(object):
     def delete_ipsecpolicy(self, ipsecpolicy):
         """Deletes the specified IPsecPolicy."""
         return self.delete(self.ipsecpolicy_path % (ipsecpolicy))
+
+    @APIParamsCall
+    def list_loadbalancers(self, retrieve_all=True, **_params):
+        """Fetches a list of all loadbalancers for a tenant."""
+        return self.list('loadbalancers', self.lbaas_loadbalancers_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_loadbalancer(self, lbaas_loadbalancer, **_params):
+        """Fetches information for a load balancer."""
+        return self.get(self.lbaas_loadbalancer_path % (lbaas_loadbalancer),
+                        params=_params)
+
+    @APIParamsCall
+    def create_loadbalancer(self, body=None):
+        """Creates a new load balancer."""
+        return self.post(self.lbaas_loadbalancers_path, body=body)
+
+    @APIParamsCall
+    def update_loadbalancer(self, lbaas_loadbalancer, body=None):
+        """Updates a load balancer."""
+        return self.put(self.lbaas_loadbalancer_path % (lbaas_loadbalancer),
+                        body=body)
+
+    @APIParamsCall
+    def delete_loadbalancer(self, lbaas_loadbalancer):
+        """Deletes the specified load balancer."""
+        return self.delete(self.lbaas_loadbalancer_path %
+                           (lbaas_loadbalancer))
+
+    @APIParamsCall
+    def list_listeners(self, retrieve_all=True, **_params):
+        """Fetches a list of all lbaas_listeners for a tenant."""
+        return self.list('listeners', self.lbaas_listeners_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_listener(self, lbaas_listener, **_params):
+        """Fetches information for a lbaas_listener."""
+        return self.get(self.lbaas_listener_path % (lbaas_listener),
+                        params=_params)
+
+    @APIParamsCall
+    def create_listener(self, body=None):
+        """Creates a new lbaas_listener."""
+        return self.post(self.lbaas_listeners_path, body=body)
+
+    @APIParamsCall
+    def update_listener(self, lbaas_listener, body=None):
+        """Updates a lbaas_listener."""
+        return self.put(self.lbaas_listener_path % (lbaas_listener),
+                        body=body)
+
+    @APIParamsCall
+    def delete_listener(self, lbaas_listener):
+        """Deletes the specified lbaas_listener."""
+        return self.delete(self.lbaas_listener_path % (lbaas_listener))
+
+    @APIParamsCall
+    def list_lbaas_pools(self, retrieve_all=True, **_params):
+        """Fetches a list of all lbaas_pools for a tenant."""
+        return self.list('pools', self.lbaas_pools_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_lbaas_pool(self, lbaas_pool, **_params):
+        """Fetches information for a lbaas_pool."""
+        return self.get(self.lbaas_pool_path % (lbaas_pool),
+                        params=_params)
+
+    @APIParamsCall
+    def create_lbaas_pool(self, body=None):
+        """Creates a new lbaas_pool."""
+        return self.post(self.lbaas_pools_path, body=body)
+
+    @APIParamsCall
+    def update_lbaas_pool(self, lbaas_pool, body=None):
+        """Updates a lbaas_pool."""
+        return self.put(self.lbaas_pool_path % (lbaas_pool),
+                        body=body)
+
+    @APIParamsCall
+    def delete_lbaas_pool(self, lbaas_pool):
+        """Deletes the specified lbaas_pool."""
+        return self.delete(self.lbaas_pool_path % (lbaas_pool))
+
+    @APIParamsCall
+    def list_lbaas_healthmonitors(self, retrieve_all=True, **_params):
+        """Fetches a list of all lbaas_healthmonitors for a tenant."""
+        return self.list('healthmonitors', self.lbaas_healthmonitors_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_lbaas_healthmonitor(self, lbaas_healthmonitor, **_params):
+        """Fetches information for a lbaas_healthmonitor."""
+        return self.get(self.lbaas_healthmonitor_path % (lbaas_healthmonitor),
+                        params=_params)
+
+    @APIParamsCall
+    def create_lbaas_healthmonitor(self, body=None):
+        """Creates a new lbaas_healthmonitor."""
+        return self.post(self.lbaas_healthmonitors_path, body=body)
+
+    @APIParamsCall
+    def update_lbaas_healthmonitor(self, lbaas_healthmonitor, body=None):
+        """Updates a lbaas_healthmonitor."""
+        return self.put(self.lbaas_healthmonitor_path % (lbaas_healthmonitor),
+                        body=body)
+
+    @APIParamsCall
+    def delete_lbaas_healthmonitor(self, lbaas_healthmonitor):
+        """Deletes the specified lbaas_healthmonitor."""
+        return self.delete(self.lbaas_healthmonitor_path %
+                           (lbaas_healthmonitor))
+
+    @APIParamsCall
+    def list_lbaas_loadbalancers(self, retrieve_all=True, **_params):
+        """Fetches a list of all lbaas_loadbalancers for a tenant."""
+        return self.list('loadbalancers', self.lbaas_loadbalancers_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def list_lbaas_members(self, lbaas_pool, retrieve_all=True, **_params):
+        """Fetches a list of all lbaas_members for a tenant."""
+        return self.list('members', self.lbaas_members_path % lbaas_pool,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_lbaas_member(self, lbaas_member, lbaas_pool, **_params):
+        """Fetches information of a certain lbaas_member."""
+        return self.get(self.lbaas_member_path % (lbaas_pool, lbaas_member),
+                        params=_params)
+
+    @APIParamsCall
+    def create_lbaas_member(self, lbaas_pool, body=None):
+        """Creates an lbaas_member."""
+        return self.post(self.lbaas_members_path % lbaas_pool, body=body)
+
+    @APIParamsCall
+    def update_lbaas_member(self, lbaas_member, lbaas_pool, body=None):
+        """Updates a lbaas_healthmonitor."""
+        return self.put(self.lbaas_member_path % (lbaas_pool, lbaas_member),
+                        body=body)
+
+    @APIParamsCall
+    def delete_lbaas_member(self, lbaas_member, lbaas_pool):
+        """Deletes the specified lbaas_member."""
+        return self.delete(self.lbaas_member_path % (lbaas_pool, lbaas_member))
 
     @APIParamsCall
     def list_vips(self, retrieve_all=True, **_params):
@@ -1186,168 +1523,3 @@ class Client(object):
     def delete_packet_filter(self, packet_filter_id):
         """Delete the specified packet filter."""
         return self.delete(self.packet_filter_path % packet_filter_id)
-
-    def __init__(self, **kwargs):
-        """Initialize a new client for the Neutron v2.0 API."""
-        super(Client, self).__init__()
-        self.httpclient = client.HTTPClient(**kwargs)
-        self.version = '2.0'
-        self.format = 'json'
-        self.action_prefix = "/v%s" % (self.version)
-        self.retries = 0
-        self.retry_interval = 1
-
-    def _handle_fault_response(self, status_code, response_body):
-        # Create exception with HTTP status code and message
-        _logger.debug("Error message: %s", response_body)
-        # Add deserialized error message to exception arguments
-        try:
-            des_error_body = self.deserialize(response_body, status_code)
-        except Exception:
-            # If unable to deserialized body it is probably not a
-            # Neutron error
-            des_error_body = {'message': response_body}
-        # Raise the appropriate exception
-        exception_handler_v20(status_code, des_error_body)
-
-    def _check_uri_length(self, action):
-        uri_len = len(self.httpclient.endpoint_url) + len(action)
-        if uri_len > self.MAX_URI_LEN:
-            raise exceptions.RequestURITooLong(
-                excess=uri_len - self.MAX_URI_LEN)
-
-    def do_request(self, method, action, body=None, headers=None, params=None):
-        # Add format and tenant_id
-        action += ".%s" % self.format
-        action = self.action_prefix + action
-        if type(params) is dict and params:
-            params = utils.safe_encode_dict(params)
-            action += '?' + urllib.urlencode(params, doseq=1)
-        # Ensure client always has correct uri - do not guesstimate anything
-        self.httpclient.authenticate_and_fetch_endpoint_url()
-        self._check_uri_length(action)
-
-        if body:
-            body = self.serialize(body)
-        self.httpclient.content_type = self.content_type()
-        resp, replybody = self.httpclient.do_request(action, method, body=body)
-        status_code = self.get_status_code(resp)
-        if status_code in (requests.codes.ok,
-                           requests.codes.created,
-                           requests.codes.accepted,
-                           requests.codes.no_content):
-            return self.deserialize(replybody, status_code)
-        else:
-            if not replybody:
-                replybody = resp.reason
-            self._handle_fault_response(status_code, replybody)
-
-    def get_auth_info(self):
-        return self.httpclient.get_auth_info()
-
-    def get_status_code(self, response):
-        """Returns the integer status code from the response.
-
-        Either a Webob.Response (used in testing) or requests.Response
-        is returned.
-        """
-        if hasattr(response, 'status_int'):
-            return response.status_int
-        else:
-            return response.status_code
-
-    def serialize(self, data):
-        """Serializes a dictionary into either XML or JSON.
-
-        A dictionary with a single key can be passed and
-        it can contain any structure.
-        """
-        if data is None:
-            return None
-        elif type(data) is dict:
-            return serializer.Serializer(
-                self.get_attr_metadata()).serialize(data, self.content_type())
-        else:
-            raise Exception(_("Unable to serialize object of type = '%s'") %
-                            type(data))
-
-    def deserialize(self, data, status_code):
-        """Deserializes an XML or JSON string into a dictionary."""
-        if status_code == 204:
-            return data
-        return serializer.Serializer(self.get_attr_metadata()).deserialize(
-            data, self.content_type())['body']
-
-    def content_type(self, _format=None):
-        """Returns the mime-type for either 'xml' or 'json'.
-
-        Defaults to the currently set format.
-        """
-        _format = _format or self.format
-        return "application/%s" % (_format)
-
-    def retry_request(self, method, action, body=None,
-                      headers=None, params=None):
-        """Call do_request with the default retry configuration.
-
-        Only idempotent requests should retry failed connection attempts.
-        :raises: ConnectionFailed if the maximum # of retries is exceeded
-        """
-        max_attempts = self.retries + 1
-        for i in range(max_attempts):
-            try:
-                return self.do_request(method, action, body=body,
-                                       headers=headers, params=params)
-            except exceptions.ConnectionFailed:
-                # Exception has already been logged by do_request()
-                if i < self.retries:
-                    _logger.debug('Retrying connection to Neutron service')
-                    time.sleep(self.retry_interval)
-
-        raise exceptions.ConnectionFailed(reason=_("Maximum attempts reached"))
-
-    def delete(self, action, body=None, headers=None, params=None):
-        return self.retry_request("DELETE", action, body=body,
-                                  headers=headers, params=params)
-
-    def get(self, action, body=None, headers=None, params=None):
-        return self.retry_request("GET", action, body=body,
-                                  headers=headers, params=params)
-
-    def post(self, action, body=None, headers=None, params=None):
-        # Do not retry POST requests to avoid the orphan objects problem.
-        return self.do_request("POST", action, body=body,
-                               headers=headers, params=params)
-
-    def put(self, action, body=None, headers=None, params=None):
-        return self.retry_request("PUT", action, body=body,
-                                  headers=headers, params=params)
-
-    def list(self, collection, path, retrieve_all=True, **params):
-        if retrieve_all:
-            res = []
-            for r in self._pagination(collection, path, **params):
-                res.extend(r[collection])
-            return {collection: res}
-        else:
-            return self._pagination(collection, path, **params)
-
-    def _pagination(self, collection, path, **params):
-        if params.get('page_reverse', False):
-            linkrel = 'previous'
-        else:
-            linkrel = 'next'
-        next = True
-        while next:
-            res = self.get(path, params=params)
-            yield res
-            next = False
-            try:
-                for link in res['%s_links' % collection]:
-                    if link['rel'] == linkrel:
-                        query_str = urlparse.urlparse(link['href']).query
-                        params = urlparse.parse_qs(query_str)
-                        next = True
-                        break
-            except KeyError:
-                break

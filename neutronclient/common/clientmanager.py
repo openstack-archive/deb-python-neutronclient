@@ -27,8 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ClientCache(object):
-    """Descriptor class for caching created client handles.
-    """
+    """Descriptor class for caching created client handles."""
 
     def __init__(self, factory):
         self.factory = factory
@@ -42,8 +41,7 @@ class ClientCache(object):
 
 
 class ClientManager(object):
-    """Manages access to API clients, including authentication.
-    """
+    """Manages access to API clients, including authentication."""
     neutron = ClientCache(neutron_client.make_client)
     # Provide support for old quantum commands (for example
     # in stable versions)
@@ -64,7 +62,11 @@ class ClientManager(object):
                  ca_cert=None,
                  log_credentials=False,
                  service_type=None,
-                 timeout=None
+                 timeout=None,
+                 retries=0,
+                 raise_errors=True,
+                 session=None,
+                 auth=None,
                  ):
         self._token = token
         self._url = url
@@ -84,11 +86,15 @@ class ClientManager(object):
         self._ca_cert = ca_cert
         self._log_credentials = log_credentials
         self._timeout = timeout
+        self._retries = retries
+        self._raise_errors = raise_errors
+        self._session = session
+        self._auth = auth
         return
 
     def initialize(self):
         if not self._url:
-            httpclient = client.HTTPClient(
+            httpclient = client.construct_http_client(
                 username=self._username,
                 user_id=self._user_id,
                 tenant_name=self._tenant_name,
@@ -100,8 +106,10 @@ class ClientManager(object):
                 endpoint_type=self._endpoint_type,
                 insecure=self._insecure,
                 ca_cert=self._ca_cert,
-                log_credentials=self._log_credentials,
-                timeout=self._timeout)
+                timeout=self._timeout,
+                session=self._session,
+                auth=self._auth,
+                log_credentials=self._log_credentials)
             httpclient.authenticate()
             # Populate other password flow attributes
             self._token = httpclient.auth_token

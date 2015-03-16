@@ -17,18 +17,19 @@
 from __future__ import print_function
 
 import argparse
-import logging
+
+from oslo.serialization import jsonutils
 
 from neutronclient.common import exceptions
 from neutronclient.common import utils
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
-from neutronclient.openstack.common.gettextutils import _
 
 
 def _format_external_gateway_info(router):
     try:
-        return utils.dumps(router['external_gateway_info'])
-    except Exception:
+        return jsonutils.dumps(router['external_gateway_info'])
+    except (TypeError, KeyError):
         return ''
 
 
@@ -36,9 +37,8 @@ class ListRouter(neutronV20.ListCommand):
     """List routers that belong to a given tenant."""
 
     resource = 'router'
-    log = logging.getLogger(__name__ + '.ListRouter')
     _formatters = {'external_gateway_info': _format_external_gateway_info, }
-    list_columns = ['id', 'name', 'external_gateway_info', 'distributed']
+    list_columns = ['id', 'name', 'external_gateway_info', 'distributed', 'ha']
     pagination_support = True
     sorting_support = True
 
@@ -47,14 +47,12 @@ class ShowRouter(neutronV20.ShowCommand):
     """Show information of a given router."""
 
     resource = 'router'
-    log = logging.getLogger(__name__ + '.ShowRouter')
 
 
 class CreateRouter(neutronV20.CreateCommand):
     """Create a router for a given tenant."""
 
     resource = 'router'
-    log = logging.getLogger(__name__ + '.CreateRouter')
     _formatters = {'external_gateway_info': _format_external_gateway_info, }
 
     def add_known_arguments(self, parser):
@@ -69,30 +67,29 @@ class CreateRouter(neutronV20.CreateCommand):
         parser.add_argument(
             'name', metavar='NAME',
             help=_('Name of router to create.'))
-        parser.add_argument(
-            'distributed', action='store_true',
+        utils.add_boolean_argument(
+            parser, '--distributed', dest='distributed',
             help=_('Create a distributed router.'))
+        utils.add_boolean_argument(
+            parser, '--ha', dest='ha',
+            help=_('Create a highly available router.'))
 
     def args2body(self, parsed_args):
-        body = {'router': {
-            'name': parsed_args.name,
-            'admin_state_up': parsed_args.admin_state, }, }
-        if parsed_args.tenant_id:
-            body['router'].update({'tenant_id': parsed_args.tenant_id})
+        body = {self.resource: {'admin_state_up': parsed_args.admin_state}}
+        neutronV20.update_dict(parsed_args, body[self.resource],
+                               ['name', 'tenant_id', 'distributed', 'ha'])
         return body
 
 
 class DeleteRouter(neutronV20.DeleteCommand):
     """Delete a given router."""
 
-    log = logging.getLogger(__name__ + '.DeleteRouter')
     resource = 'router'
 
 
 class UpdateRouter(neutronV20.UpdateCommand):
     """Update router's information."""
 
-    log = logging.getLogger(__name__ + '.UpdateRouter')
     resource = 'router'
 
 
@@ -111,14 +108,15 @@ class RouterInterfaceCommand(neutronV20.NeutronCommand):
     def get_parser(self, prog_name):
         parser = super(RouterInterfaceCommand, self).get_parser(prog_name)
         parser.add_argument(
-            'router_id', metavar='router-id',
-            help=_('ID of the router.'))
+            'router', metavar='ROUTER',
+            help=_('ID or name of the router.'))
         parser.add_argument(
             'interface', metavar='INTERFACE',
             help=_('The format is "SUBNET|subnet=SUBNET|port=PORT". '
-            'Either a subnet or port must be specified. '
-            'Both ID and name are accepted as SUBNET or PORT. '
-            'Note that "subnet=" can be omitted when specifying a subnet.'))
+                   'Either a subnet or port must be specified. '
+                   'Both ID and name are accepted as SUBNET or PORT. '
+                   'Note that "subnet=" can be omitted when specifying a '
+                   'subnet.'))
         return parser
 
     def run(self, parsed_args):
@@ -136,21 +134,19 @@ class RouterInterfaceCommand(neutronV20.NeutronCommand):
             value = parsed_args.interface
 
         _router_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, self.resource, parsed_args.router_id)
+            neutron_client, self.resource, parsed_args.router)
 
         _interface_id = neutronV20.find_resourceid_by_name_or_id(
             neutron_client, resource, value)
         body = {'%s_id' % resource: _interface_id}
 
         portinfo = self.call_api(neutron_client, _router_id, body)
-        print(self.success_message(parsed_args.router_id, portinfo),
+        print(self.success_message(parsed_args.router, portinfo),
               file=self.app.stdout)
 
 
 class AddInterfaceRouter(RouterInterfaceCommand):
     """Add an internal network interface to a router."""
-
-    log = logging.getLogger(__name__ + '.AddInterfaceRouter')
 
     def call_api(self, neutron_client, router_id, body):
         return neutron_client.add_interface_router(router_id, body)
@@ -163,8 +159,6 @@ class AddInterfaceRouter(RouterInterfaceCommand):
 class RemoveInterfaceRouter(RouterInterfaceCommand):
     """Remove an internal network interface from a router."""
 
-    log = logging.getLogger(__name__ + '.RemoveInterfaceRouter')
-
     def call_api(self, neutron_client, router_id, body):
         return neutron_client.remove_interface_router(router_id, body)
 
@@ -176,18 +170,17 @@ class RemoveInterfaceRouter(RouterInterfaceCommand):
 class SetGatewayRouter(neutronV20.NeutronCommand):
     """Set the external network gateway for a router."""
 
-    log = logging.getLogger(__name__ + '.SetGatewayRouter')
     api = 'network'
     resource = 'router'
 
     def get_parser(self, prog_name):
         parser = super(SetGatewayRouter, self).get_parser(prog_name)
         parser.add_argument(
-            'router_id', metavar='router-id',
-            help=_('ID of the router.'))
+            'router', metavar='ROUTER',
+            help=_('ID or name of the router.'))
         parser.add_argument(
-            'external_network_id', metavar='external-network-id',
-            help=_('ID of the external network for the gateway.'))
+            'external_network', metavar='EXTERNAL-NETWORK',
+            help=_('ID or name of the external network for the gateway.'))
         parser.add_argument(
             '--disable-snat', action='store_true',
             help=_('Disable source NAT on the router gateway.'))
@@ -198,29 +191,28 @@ class SetGatewayRouter(neutronV20.NeutronCommand):
         neutron_client = self.get_client()
         neutron_client.format = parsed_args.request_format
         _router_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, self.resource, parsed_args.router_id)
+            neutron_client, self.resource, parsed_args.router)
         _ext_net_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, 'network', parsed_args.external_network_id)
+            neutron_client, 'network', parsed_args.external_network)
         router_dict = {'network_id': _ext_net_id}
         if parsed_args.disable_snat:
             router_dict['enable_snat'] = False
         neutron_client.add_gateway_router(_router_id, router_dict)
-        print(_('Set gateway for router %s') % parsed_args.router_id,
+        print(_('Set gateway for router %s') % parsed_args.router,
               file=self.app.stdout)
 
 
 class RemoveGatewayRouter(neutronV20.NeutronCommand):
     """Remove an external network gateway from a router."""
 
-    log = logging.getLogger(__name__ + '.RemoveGatewayRouter')
     api = 'network'
     resource = 'router'
 
     def get_parser(self, prog_name):
         parser = super(RemoveGatewayRouter, self).get_parser(prog_name)
         parser.add_argument(
-            'router_id', metavar='router-id',
-            help=_('ID of the router.'))
+            'router', metavar='ROUTER',
+            help=_('ID or name of the router.'))
         return parser
 
     def run(self, parsed_args):
@@ -228,7 +220,7 @@ class RemoveGatewayRouter(neutronV20.NeutronCommand):
         neutron_client = self.get_client()
         neutron_client.format = parsed_args.request_format
         _router_id = neutronV20.find_resourceid_by_name_or_id(
-            neutron_client, self.resource, parsed_args.router_id)
+            neutron_client, self.resource, parsed_args.router)
         neutron_client.remove_gateway_router(_router_id)
-        print(_('Removed gateway from router %s') % parsed_args.router_id,
+        print(_('Removed gateway from router %s') % parsed_args.router,
               file=self.app.stdout)

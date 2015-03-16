@@ -18,16 +18,20 @@
 ###
 
 import logging
-
 from xml.etree import ElementTree as etree
 from xml.parsers import expat
 
+from oslo.serialization import jsonutils
+import six
+
 from neutronclient.common import constants
 from neutronclient.common import exceptions as exception
-from neutronclient.openstack.common.gettextutils import _
-from neutronclient.openstack.common import jsonutils
+from neutronclient.i18n import _
 
 LOG = logging.getLogger(__name__)
+
+if six.PY3:
+    long = int
 
 
 class ActionDispatcher(object):
@@ -58,7 +62,7 @@ class JSONDictSerializer(DictSerializer):
 
     def default(self, data):
         def sanitizer(obj):
-            return unicode(obj)
+            return six.text_type(obj)
         return jsonutils.dumps(data, default=sanitizer)
 
 
@@ -93,13 +97,13 @@ class XMLDictSerializer(DictSerializer):
                 root_key = constants.VIRTUAL_ROOT_KEY
                 root_value = None
             else:
-                link_keys = [k for k in data.iterkeys() or []
+                link_keys = [k for k in six.iterkeys(data) or []
                              if k.endswith('_links')]
                 if link_keys:
                     links = data.pop(link_keys[0], None)
                     has_atom = True
                 root_key = (len(data) == 1 and
-                            data.keys()[0] or constants.VIRTUAL_ROOT_KEY)
+                            list(data.keys())[0] or constants.VIRTUAL_ROOT_KEY)
                 root_value = data.get(root_key, data)
             doc = etree.Element("_temp_root")
             used_prefixes = []
@@ -194,10 +198,7 @@ class XMLDictSerializer(DictSerializer):
             LOG.debug("Data %(data)s type is %(type)s",
                       {'data': data,
                        'type': type(data)})
-            if isinstance(data, str):
-                result.text = unicode(data, 'utf-8')
-            else:
-                result.text = unicode(data)
+            result.text = six.text_type(data)
         return result
 
     def _create_link_nodes(self, xml_doc, links):
@@ -290,7 +291,7 @@ class XMLDeserializer(TextDeserializer):
             parseError = False
             # Python2.7
             if (hasattr(etree, 'ParseError') and
-                isinstance(e, getattr(etree, 'ParseError'))):
+                    isinstance(e, getattr(etree, 'ParseError'))):
                 parseError = True
             # Python2.6
             elif isinstance(e, expat.ExpatError):
@@ -340,9 +341,9 @@ class XMLDeserializer(TextDeserializer):
             result = dict()
             for attr in node.keys():
                 if (attr == 'xmlns' or
-                    attr.startswith('xmlns:') or
-                    attr == constants.XSI_ATTR or
-                    attr == constants.TYPE_ATTR):
+                        attr.startswith('xmlns:') or
+                        attr == constants.XSI_ATTR or
+                        attr == constants.TYPE_ATTR):
                     continue
                 result[self._get_key(attr)] = node.get(attr)
             children = list(node)
@@ -392,7 +393,6 @@ class Serializer(object):
         """Deserialize a string to a dictionary.
 
         The string must be in the format of a supported MIME type.
-
         """
         return self.get_deserialize_handler(content_type).deserialize(
             datastring)

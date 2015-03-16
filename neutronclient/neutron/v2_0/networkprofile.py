@@ -16,11 +16,9 @@
 
 from __future__ import print_function
 
-import logging
-
+from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 from neutronclient.neutron.v2_0 import parse_args_to_dict
-from neutronclient.openstack.common.gettextutils import _
 
 RESOURCE = 'network_profile'
 SEGMENT_TYPE_CHOICES = ['vlan', 'overlay', 'multi-segment', 'trunk']
@@ -30,7 +28,6 @@ class ListNetworkProfile(neutronV20.ListCommand):
     """List network profiles that belong to a given tenant."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.ListNetworkProfile')
     _formatters = {}
     list_columns = ['id', 'name', 'segment_type', 'sub_type', 'segment_range',
                     'physical_network', 'multicast_ip_index',
@@ -41,7 +38,6 @@ class ShowNetworkProfile(neutronV20.ShowCommand):
     """Show information of a given network profile."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.ShowNetworkProfile')
     allow_names = True
 
 
@@ -49,7 +45,6 @@ class CreateNetworkProfile(neutronV20.CreateCommand):
     """Creates a network profile."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.CreateNetworkProfile')
 
     def add_known_arguments(self, parser):
         parser.add_argument('name',
@@ -59,9 +54,10 @@ class CreateNetworkProfile(neutronV20.CreateCommand):
                             help='Segment type.')
         # TODO(Abhishek): Check on sub-type choices depending on segment_type
         parser.add_argument('--sub_type',
-                            help=_('Sub-type for the segment. Available sub-'
-                            'types for overlay segments: native, enhanced; '
-                            'For trunk segments: vlan, overlay.'))
+                            help=_('Sub-type for the segment. Available '
+                                   'sub-types for overlay segments: '
+                                   'native, enhanced; For trunk segments: '
+                                   'vlan, overlay.'))
         parser.add_argument('--segment_range',
                             help=_('Range for the segment.'))
         parser.add_argument('--physical_network',
@@ -69,7 +65,9 @@ class CreateNetworkProfile(neutronV20.CreateCommand):
         parser.add_argument('--multicast_ip_range',
                             help=_('Multicast IPv4 range.'))
         parser.add_argument("--add-tenant",
-                            help=_("Add tenant to the network profile."))
+                            action='append', dest='add_tenants',
+                            help=_("Add tenant to the network profile. "
+                                   "You can repeat this option."))
 
     def args2body(self, parsed_args):
         body = {'network_profile': {'name': parsed_args.name}}
@@ -88,16 +86,15 @@ class CreateNetworkProfile(neutronV20.CreateCommand):
         if parsed_args.multicast_ip_range:
             body['network_profile'].update({'multicast_ip_range':
                                            parsed_args.multicast_ip_range})
-        if parsed_args.add_tenant:
-            body['network_profile'].update({'add_tenant':
-                                           parsed_args.add_tenant})
+        if parsed_args.add_tenants:
+            body['network_profile'].update({'add_tenants':
+                                           parsed_args.add_tenants})
         return body
 
 
 class DeleteNetworkProfile(neutronV20.DeleteCommand):
     """Delete a given network profile."""
 
-    log = logging.getLogger(__name__ + '.DeleteNetworkProfile')
     resource = RESOURCE
     allow_names = True
 
@@ -106,13 +103,31 @@ class UpdateNetworkProfile(neutronV20.UpdateCommand):
     """Update network profile's information."""
 
     resource = RESOURCE
-    log = logging.getLogger(__name__ + '.UpdateNetworkProfile')
+
+    def add_known_arguments(self, parser):
+        parser.add_argument("--remove-tenant",
+                            action='append', dest='remove_tenants',
+                            help=_("Remove tenant from the network profile. "
+                                   "You can repeat this option."))
+        parser.add_argument("--add-tenant",
+                            action='append', dest='add_tenants',
+                            help=_("Add tenant to the network profile. "
+                                   "You can repeat this option."))
+
+    def args2body(self, parsed_args):
+        body = {'network_profile': {}}
+        if parsed_args.remove_tenants:
+            body['network_profile']['remove_tenants'] = (parsed_args.
+                                                         remove_tenants)
+        if parsed_args.add_tenants:
+            body['network_profile']['add_tenants'] = parsed_args.add_tenants
+        return body
 
 
+# Aaron: This function is deprecated
 class UpdateNetworkProfileV2(neutronV20.NeutronCommand):
 
     api = 'network'
-    log = logging.getLogger(__name__ + '.UpdateNetworkProfileV2')
     resource = RESOURCE
 
     def get_parser(self, prog_name):
