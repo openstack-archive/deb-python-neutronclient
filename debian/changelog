@@ -1,3 +1,10 @@
+python-neutronclient (2.3.11-3) UNRELEASED; urgency=medium
+
+  * New upstream release.
+  * Fixed (build-)depends for this release.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 16 Mar 2015 18:16:10 +0100
+
 python-neutronclient (2.3.6-2) unstable; urgency=medium
 
   * Increased version of (build-)depends for cliff and six.
