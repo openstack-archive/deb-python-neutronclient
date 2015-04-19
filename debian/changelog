@@ -1,4 +1,4 @@
-python-neutronclient (2.3.11-3) UNRELEASED; urgency=medium
+python-neutronclient (2.4.0-1) UNRELEASED; urgency=medium
 
   * New upstream release.
   * Fixed (build-)depends for this release.
