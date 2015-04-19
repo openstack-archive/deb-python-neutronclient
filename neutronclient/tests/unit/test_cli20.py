@@ -50,7 +50,7 @@ def capture_std_streams():
         sys.stdout, sys.stderr = stdout, stderr
 
 
-class FakeStdout:
+class FakeStdout(object):
 
     def __init__(self):
         self.content = []
@@ -91,10 +91,14 @@ class MyUrlComparator(mox.Comparator):
         lhsp = urlparse.urlparse(self.lhs)
         rhsp = urlparse.urlparse(rhs)
 
+        lhs_qs = urlparse.parse_qsl(lhsp.query)
+        rhs_qs = urlparse.parse_qsl(rhsp.query)
+
         return (lhsp.scheme == rhsp.scheme and
                 lhsp.netloc == rhsp.netloc and
                 lhsp.path == rhsp.path and
-                urlparse.parse_qs(lhsp.query) == urlparse.parse_qs(rhsp.query))
+                len(lhs_qs) == len(rhs_qs) and
+                set(lhs_qs) == set(rhs_qs))
 
     def __str__(self):
         if self.client and self.client.format != FORMAT:
@@ -217,7 +221,8 @@ class CLITestV20Base(base.BaseTestCase):
                                       'credential', 'network_profile',
                                       'policy_profile', 'ikepolicy',
                                       'ipsecpolicy', 'metering_label',
-                                      'metering_label_rule', 'net_partition']
+                                      'metering_label_rule', 'net_partition',
+                                      'fox_socket', 'subnetpool']
         if not cmd_resource:
             cmd_resource = resource
         if (resource in non_admin_status_resources):
@@ -617,6 +622,17 @@ class ClientV2TestJson(CLITestV20Base):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
+    def test_do_request_with_long_uri_exception(self):
+        long_string = 'x' * 8200                  # 8200 > MAX_URI_LEN:8192
+        params = {'id': long_string}
+
+        try:
+            self.client.do_request('GET', '/test', body='', params=params)
+        except exceptions.RequestURITooLong as cm:
+            self.assertNotEqual(cm.excess, 0)
+        else:
+            self.fail('Expected exception NOT raised')
+
 
 class ClientV2UnicodeTestXML(ClientV2TestJson):
     format = 'xml'
@@ -625,9 +641,9 @@ class ClientV2UnicodeTestXML(ClientV2TestJson):
 class CLITestV20ExceptionHandler(CLITestV20Base):
 
     def _test_exception_handler_v20(
-        self, expected_exception, status_code, expected_msg,
-        error_type=None, error_msg=None, error_detail=None,
-        error_content=None):
+            self, expected_exception, status_code, expected_msg,
+            error_type=None, error_msg=None, error_detail=None,
+            error_content=None):
         if error_content is None:
             error_content = {'NeutronError': {'type': error_type,
                                               'message': error_msg,

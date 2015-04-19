@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# @author: Craig Tracey <craigtracey@gmail.com>
-#
 
 import sys
 
@@ -33,12 +31,11 @@ class CLITestV20LbPoolJSON(test_cli20.CLITestV20Base):
         lb_algorithm = 'ROUND_ROBIN'
         listener = 'listener'
         protocol = 'TCP'
-        name = 'my-pool'
         args = ['--lb-algorithm', lb_algorithm, '--protocol', protocol,
-                '--listener', listener, name]
+                '--listener', listener]
         position_names = ['admin_state_up', 'lb_algorithm', 'protocol',
-                          'listener_id', 'name']
-        position_values = [True, lb_algorithm, protocol, listener, name]
+                          'listener_id']
+        position_values = [True, lb_algorithm, protocol, listener]
         self._test_create_resource(resource, cmd, '', my_id, args,
                                    position_names, position_values,
                                    cmd_resource=cmd_resource)
@@ -53,22 +50,19 @@ class CLITestV20LbPoolJSON(test_cli20.CLITestV20Base):
         listener = 'listener'
         protocol = 'TCP'
         description = 'description'
-        session_persistence_str = 'HTTP_COOKIE:1234'
-        session_persistence = {'type': 'HTTP_COOKIE',
+        session_persistence_str = 'type=APP_COOKIE,cookie_name=1234'
+        session_persistence = {'type': 'APP_COOKIE',
                                'cookie_name': '1234'}
-        healthmon_id = 'healthmon-id'
         name = 'my-pool'
         args = ['--lb-algorithm', lb_algorithm, '--protocol', protocol,
                 '--description', description, '--session-persistence',
-                session_persistence_str, '--healthmonitor-id',
-                healthmon_id, '--admin-state-down', name,
+                session_persistence_str, '--admin-state-down', '--name', name,
                 '--listener', listener]
         position_names = ['lb_algorithm', 'protocol', 'description',
-                          'session_persistence', 'healthmonitor_id',
-                          'admin_state_up', 'listener_id', 'name']
+                          'session_persistence', 'admin_state_up', 'name',
+                          'listener_id']
         position_values = [lb_algorithm, protocol, description,
-                           session_persistence, healthmon_id,
-                           False, listener, name]
+                           session_persistence, False, name, listener]
         self._test_create_resource(resource, cmd, '', my_id, args,
                                    position_names, position_values,
                                    cmd_resource=cmd_resource)

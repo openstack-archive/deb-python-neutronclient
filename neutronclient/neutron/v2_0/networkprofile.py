@@ -10,9 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-#@author Abhishek Raut, Cisco Systems
-#@author Sergey Sudakovich, Cisco Systems
-#@author Rudrajit Tapadar, Cisco Systems
 
 from __future__ import print_function
 
@@ -42,7 +39,7 @@ class ShowNetworkProfile(neutronV20.ShowCommand):
 
 
 class CreateNetworkProfile(neutronV20.CreateCommand):
-    """Creates a network profile."""
+    """Create a network profile."""
 
     resource = RESOURCE
 

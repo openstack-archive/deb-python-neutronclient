@@ -52,10 +52,11 @@ def add_updatable_arguments(parser):
     parser.add_argument(
         '--name',
         help=_('Name of this subnet.'))
-    parser.add_argument(
+    gateway_sg = parser.add_mutually_exclusive_group()
+    gateway_sg.add_argument(
         '--gateway', metavar='GATEWAY_IP',
         help=_('Gateway IP of this subnet.'))
-    parser.add_argument(
+    gateway_sg.add_argument(
         '--no-gateway',
         action='store_true',
         help=_('No distribution of gateway.'))
@@ -102,17 +103,13 @@ def add_updatable_arguments(parser):
 
 
 def updatable_args2body(parsed_args, body, for_create=True):
-    if parsed_args.gateway and parsed_args.no_gateway:
-        raise exceptions.CommandError(_("--gateway option and "
-                                        "--no-gateway option can "
-                                        "not be used same time"))
     if parsed_args.disable_dhcp and parsed_args.enable_dhcp:
         raise exceptions.CommandError(_(
             "You cannot enable and disable DHCP at the same time."))
 
     if parsed_args.no_gateway:
         body['subnet'].update({'gateway_ip': None})
-    if parsed_args.gateway:
+    elif parsed_args.gateway:
         body['subnet'].update({'gateway_ip': parsed_args.gateway})
     if parsed_args.name:
         body['subnet'].update({'name': parsed_args.name})
@@ -178,7 +175,7 @@ class CreateSubnet(neutronV20.CreateCommand):
             'network_id', metavar='NETWORK',
             help=_('Network ID or name this subnet belongs to.'))
         parser.add_argument(
-            'cidr', metavar='CIDR',
+            'cidr', nargs='?', metavar='CIDR',
             help=_('CIDR of subnet to create.'))
         parser.add_argument(
             '--ipv6-ra-mode',
@@ -188,18 +185,42 @@ class CreateSubnet(neutronV20.CreateCommand):
             '--ipv6-address-mode',
             choices=['dhcpv6-stateful', 'dhcpv6-stateless', 'slaac'],
             help=_('IPv6 address mode.'))
+        parser.add_argument(
+            '--subnetpool', metavar='SUBNETPOOL',
+            help=_('ID or name of subnetpool from which this subnet '
+                   'will obtain a CIDR.'))
+        parser.add_argument(
+            '--prefixlen', metavar='PREFIX_LENGTH',
+            help=_('Prefix length for subnet allocation from subnetpool.'))
 
     def args2body(self, parsed_args):
-        if parsed_args.ip_version == 4 and parsed_args.cidr.endswith('/32'):
-            self.log.warning(_("An IPv4 subnet with a /32 CIDR will have "
-                               "only one usable IP address so the device "
-                               "attached to it will not have any IP "
-                               "connectivity."))
         _network_id = neutronV20.find_resourceid_by_name_or_id(
             self.get_client(), 'network', parsed_args.network_id)
-        body = {'subnet': {'cidr': parsed_args.cidr,
-                           'network_id': _network_id,
+        body = {'subnet': {'network_id': _network_id,
                            'ip_version': parsed_args.ip_version, }, }
+
+        if parsed_args.cidr:
+            # With subnetpool, cidr is now optional for creating subnet.
+            cidr = parsed_args.cidr
+            body['subnet'].update({'cidr': cidr})
+            unusable_cidr = '/32' if parsed_args.ip_version == 4 else '/128'
+            if cidr.endswith(unusable_cidr):
+                self.log.warning(_("An IPv%(ip)d subnet with a %(cidr)s CIDR "
+                                   "will have only one usable IP address so "
+                                   "the device attached to it will not have "
+                                   "any IP connectivity.")
+                                 % {"ip": parsed_args.ip_version,
+                                    "cidr": unusable_cidr})
+
+        if parsed_args.prefixlen:
+            body['subnet'].update({'prefixlen': parsed_args.prefixlen})
+        if parsed_args.subnetpool:
+            if parsed_args.subnetpool == 'None':
+                _subnetpool_id = None
+            else:
+                _subnetpool_id = neutronV20.find_resourceid_by_name_or_id(
+                    self.get_client(), 'subnetpool', parsed_args.subnetpool)
+            body['subnet'].update({'subnetpool_id': _subnetpool_id})
 
         updatable_args2body(parsed_args, body)
         if parsed_args.tenant_id:

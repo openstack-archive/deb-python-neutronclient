@@ -3,9 +3,6 @@
 # Copyright 2015 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved
 #
-# Author: Ilya Shakhat, Mirantis Inc.
-# Author: Craig Tracey <craigtracey@gmail.com>
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -19,20 +16,9 @@
 #    under the License.
 #
 
-from neutronclient.common import exceptions
+from neutronclient.common import utils
 from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
-
-
-def _parse_persistence(parsed_args):
-    persistence = None
-    if parsed_args.session_persistence:
-        parts = parsed_args.session_persistence.split(':')
-        if not len(parts) == 2:
-            raise exceptions.CommandError('Incorrect --session-persistence'
-                                          ' format. Format is <TYPE>:<VALUE>')
-        persistence = {'type': parts[0], 'cookie_name': parts[1]}
-    return persistence
 
 
 class ListPool(neutronV20.ListCommand):
@@ -76,11 +62,12 @@ class CreatePool(neutronV20.CreateCommand):
             '--description',
             help=_('Description of the pool.'))
         parser.add_argument(
-            '--healthmonitor-id',
-            help=_('ID of the health monitor to use.'))
+            '--session-persistence',
+            metavar='type=TYPE[,cookie_name=COOKIE_NAME]',
+            help=_('The type of session persistence to use and associated '
+                   'cookie name'))
         parser.add_argument(
-            '--session-persistence', metavar='TYPE:VALUE',
-            help=_('The type of session persistence to use.'))
+            '--name', help=_('The name of the pool.'))
         parser.add_argument(
             '--lb-algorithm',
             required=True,
@@ -96,18 +83,15 @@ class CreatePool(neutronV20.CreateCommand):
             required=True,
             choices=['HTTP', 'HTTPS', 'TCP'],
             help=_('Protocol for balancing.'))
-        parser.add_argument(
-            'name', metavar='NAME',
-            help=_('The name of the pool.'))
 
     def args2body(self, parsed_args):
         if parsed_args.session_persistence:
-            parsed_args.session_persistence = _parse_persistence(parsed_args)
+            parsed_args.session_persistence = utils.str2dict(
+                parsed_args.session_persistence)
         _listener_id = neutronV20.find_resourceid_by_name_or_id(
             self.get_client(), 'listener', parsed_args.listener)
         body = {
             self.resource: {
-                'name': parsed_args.name,
                 'admin_state_up': parsed_args.admin_state,
                 'protocol': parsed_args.protocol,
                 'lb_algorithm': parsed_args.lb_algorithm,
@@ -115,7 +99,7 @@ class CreatePool(neutronV20.CreateCommand):
             },
         }
         neutronV20.update_dict(parsed_args, body[self.resource],
-                               ['description', 'healthmonitor_id',
+                               ['description', 'name',
                                 'session_persistence'])
         return body
 

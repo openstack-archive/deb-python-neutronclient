@@ -2,8 +2,6 @@
 # Copyright 2015 Hewlett-Packard Development Company, L.P.
 # All Rights Reserved
 #
-# Author: Craig Tracey <craigtracey@gmail.com>
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -69,13 +67,13 @@ class CreateLoadBalancer(neutronV20.CreateCommand):
             self.get_client(), 'subnet', parsed_args.vip_subnet)
         body = {
             self.resource: {
-                'name': parsed_args.name,
                 'vip_subnet_id': _subnet_id,
                 'admin_state_up': parsed_args.admin_state,
             },
         }
         neutronV20.update_dict(parsed_args, body[self.resource],
-                               ['description', 'provider', 'vip_address'])
+                               ['description', 'provider', 'vip_address',
+                                'name'])
         return body
 
 

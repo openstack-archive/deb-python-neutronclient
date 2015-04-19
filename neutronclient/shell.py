@@ -22,6 +22,8 @@ from __future__ import print_function
 
 import argparse
 import getpass
+import inspect
+import itertools
 import logging
 import os
 import sys
@@ -40,6 +42,7 @@ from cliff import commandmanager
 from neutronclient.common import clientmanager
 from neutronclient.common import command as openstack_command
 from neutronclient.common import exceptions as exc
+from neutronclient.common import extension as client_extension
 from neutronclient.common import utils
 from neutronclient.i18n import _
 from neutronclient.neutron.v2_0 import agent
@@ -73,6 +76,7 @@ from neutronclient.neutron.v2_0 import router
 from neutronclient.neutron.v2_0 import securitygroup
 from neutronclient.neutron.v2_0 import servicetype
 from neutronclient.neutron.v2_0 import subnet
+from neutronclient.neutron.v2_0 import subnetpool
 from neutronclient.neutron.v2_0.vpn import ikepolicy
 from neutronclient.neutron.v2_0.vpn import ipsec_site_connection
 from neutronclient.neutron.v2_0.vpn import ipsecpolicy
@@ -139,6 +143,11 @@ COMMAND_V2 = {
     'subnet-create': subnet.CreateSubnet,
     'subnet-delete': subnet.DeleteSubnet,
     'subnet-update': subnet.UpdateSubnet,
+    'subnetpool-list': subnetpool.ListSubnetPool,
+    'subnetpool-show': subnetpool.ShowSubnetPool,
+    'subnetpool-create': subnetpool.CreateSubnetPool,
+    'subnetpool-delete': subnetpool.DeleteSubnetPool,
+    'subnetpool-update': subnetpool.UpdateSubnetPool,
     'port-list': port.ListPort,
     'port-show': port.ShowPort,
     'port-create': port.CreatePort,
@@ -255,6 +264,10 @@ COMMAND_V2 = {
     'l3-agent-list-hosting-router': agentscheduler.ListL3AgentsHostingRouter,
     'lb-pool-list-on-agent': agentscheduler.ListPoolsOnLbaasAgent,
     'lb-agent-hosting-pool': agentscheduler.GetLbaasAgentHostingPool,
+    'lbaas-loadbalancer-list-on-agent':
+        agentscheduler.ListLoadBalancersOnLbaasAgent,
+    'lbaas-agent-hosting-loadbalancer':
+        agentscheduler.GetLbaasAgentHostingLoadBalancer,
     'service-provider-list': servicetype.ListServiceProvider,
     'firewall-rule-list': firewallrule.ListFirewallRule,
     'firewall-rule-show': firewallrule.ShowFirewallRule,
@@ -380,6 +393,8 @@ class NeutronShell(app.App):
         self.commands = COMMANDS
         for k, v in self.commands[apiversion].items():
             self.command_manager.add_command(k, v)
+
+        self._register_extensions(VERSION)
 
         # Pop the 'complete' to correct the outputs of 'neutron help'.
         self.command_manager.commands.pop('complete')
@@ -671,6 +686,26 @@ class NeutronShell(app.App):
                 options.add(option)
         print(' '.join(commands | options))
 
+    def _register_extensions(self, version):
+        for name, module in itertools.chain(
+                client_extension._discover_via_entry_points()):
+            self._extend_shell_commands(module, version)
+
+    def _extend_shell_commands(self, module, version):
+        classes = inspect.getmembers(module, inspect.isclass)
+        for cls_name, cls in classes:
+            if (issubclass(cls, client_extension.NeutronClientExtension) and
+                    hasattr(cls, 'shell_command')):
+                cmd = cls.shell_command
+                if hasattr(cls, 'versions'):
+                    if version not in cls.versions:
+                        continue
+                try:
+                    self.command_manager.add_command(cmd, cls)
+                    self.commands[version][cmd] = cls
+                except TypeError:
+                    pass
+
     def run(self, argv):
         """Equivalent to the main program for the application.
 
@@ -746,12 +781,14 @@ class NeutronShell(app.App):
                 if not self.options.os_token:
                     raise exc.CommandError(
                         _("You must provide a token via"
-                          " either --os-token or env[OS_TOKEN]"))
+                          " either --os-token or env[OS_TOKEN]"
+                          " when providing a service URL"))
 
                 if not self.options.os_url:
                     raise exc.CommandError(
                         _("You must provide a service URL via"
-                          " either --os-url or env[OS_URL]"))
+                          " either --os-url or env[OS_URL]"
+                          " when providing a token"))
 
             else:
                 # Validate password flow auth

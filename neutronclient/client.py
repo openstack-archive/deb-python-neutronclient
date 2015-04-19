@@ -40,6 +40,7 @@ else:
     _requests_log_level = logging.WARNING
 
 logging.getLogger("requests").setLevel(_requests_log_level)
+MAX_URI_LEN = 8192
 
 
 class HTTPClient(object):
@@ -47,9 +48,6 @@ class HTTPClient(object):
 
     USER_AGENT = 'python-neutronclient'
     CONTENT_TYPE = 'application/json'
-
-    # 8192 Is the default max URI len for eventlet.wsgi.server
-    MAX_URI_LEN = 8192
 
     def __init__(self, username=None, user_id=None,
                  tenant_name=None, tenant_id=None,
@@ -151,9 +149,9 @@ class HTTPClient(object):
 
     def _check_uri_length(self, action):
         uri_len = len(self.endpoint_url) + len(action)
-        if uri_len > self.MAX_URI_LEN:
+        if uri_len > MAX_URI_LEN:
             raise exceptions.RequestURITooLong(
-                excess=uri_len - self.MAX_URI_LEN)
+                excess=uri_len - MAX_URI_LEN)
 
     def do_request(self, url, method, **kwargs):
         # Ensure client always has correct uri - do not guesstimate anything
@@ -296,8 +294,15 @@ class SessionClient(adapter.Adapter):
         resp = super(SessionClient, self).request(*args, **kwargs)
         return resp, resp.text
 
+    def _check_uri_length(self, url):
+        uri_len = len(self.endpoint_url) + len(url)
+        if uri_len > MAX_URI_LEN:
+            raise exceptions.RequestURITooLong(
+                excess=uri_len - MAX_URI_LEN)
+
     def do_request(self, url, method, **kwargs):
         kwargs.setdefault('authenticated', True)
+        self._check_uri_length(url)
         return self.request(url, method, **kwargs)
 
     @property
