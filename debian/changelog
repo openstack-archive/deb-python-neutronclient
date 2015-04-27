@@ -1,6 +1,7 @@
-python-neutronclient (2.4.0-1) UNRELEASED; urgency=medium
+python-neutronclient (2.4.0-1) unstable; urgency=medium
 
   * New upstream release.
+  * Uploading to unstable.
   * Fixed (build-)depends for this release.
 
  -- Thomas Goirand <zigo@debian.org>  Mon, 16 Mar 2015 18:16:10 +0100
