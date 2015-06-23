@@ -3,6 +3,7 @@ python-neutronclient (1:2.6.0-1) UNRELEASED; urgency=medium
   * New upstream release:
     - d/control: Align dependencies and versions with upstream.
   * Bump epoch inline with Ubuntu to support resync.
+  * Introduce DEP-8 tests from Ubuntu.
 
  -- James Page <james.page@ubuntu.com>  Tue, 23 Jun 2015 11:47:17 +0100
 
