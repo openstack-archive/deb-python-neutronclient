@@ -19,10 +19,11 @@
 
 import argparse
 import logging
+import netaddr
 import os
 
-from oslo.utils import encodeutils
-from oslo.utils import importutils
+from oslo_utils import encodeutils
+from oslo_utils import importutils
 import six
 
 from neutronclient.common import exceptions
@@ -171,3 +172,11 @@ def add_boolean_argument(parser, name, **kwargs):
         choices=['True', 'true', 'False', 'false'],
         default=default,
         **kwargs)
+
+
+def is_valid_cidr(cidr):
+    try:
+        netaddr.IPNetwork(cidr)
+        return True
+    except Exception:
+        return False

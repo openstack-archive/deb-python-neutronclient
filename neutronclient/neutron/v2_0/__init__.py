@@ -24,7 +24,7 @@ import re
 from cliff.formatters import table
 from cliff import lister
 from cliff import show
-from oslo.serialization import jsonutils
+from oslo_serialization import jsonutils
 import six
 
 from neutronclient.common import command
@@ -287,6 +287,10 @@ def parse_args_to_dict(values_specs):
                 raise exceptions.CommandError(
                     _("Invalid values_specs %s") % ' '.join(values_specs))
             _value_number += 1
+
+        if _item.startswith('---'):
+            raise exceptions.CommandError(
+                _("Invalid values_specs %s") % ' '.join(values_specs))
 
         _values_specs.append(_item)
 
