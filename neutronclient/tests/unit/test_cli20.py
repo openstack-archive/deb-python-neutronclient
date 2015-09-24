@@ -15,6 +15,7 @@
 #
 
 import contextlib
+import copy
 import itertools
 import sys
 
@@ -37,6 +38,17 @@ API_VERSION = "2.0"
 FORMAT = 'json'
 TOKEN = 'testtoken'
 ENDURL = 'localurl'
+
+non_admin_status_resources = ['subnet', 'floatingip', 'security_group',
+                              'security_group_rule', 'qos_queue',
+                              'network_gateway', 'gateway_device',
+                              'credential', 'network_profile',
+                              'policy_profile', 'ikepolicy',
+                              'ipsecpolicy', 'metering_label',
+                              'metering_label_rule', 'net_partition',
+                              'fox_socket', 'subnetpool',
+                              'rbac_policy', 'address_scope',
+                              'policy', 'bandwidth_limit_rule']
 
 
 @contextlib.contextmanager
@@ -186,6 +198,7 @@ class CLITestV20Base(base.BaseTestCase):
         """Prepare the test environment."""
         super(CLITestV20Base, self).setUp()
         client.Client.EXTED_PLURALS.update(constants.PLURALS)
+        self.non_admin_status_resources = copy.copy(non_admin_status_resources)
         if plurals is not None:
             client.Client.EXTED_PLURALS.update(plurals)
         self.metadata = {'plurals': client.Client.EXTED_PLURALS,
@@ -207,25 +220,22 @@ class CLITestV20Base(base.BaseTestCase):
             self._get_attr_metadata))
         self.client = client.Client(token=TOKEN, endpoint_url=self.endurl)
 
+    def register_non_admin_status_resource(self, resource_name):
+        self.non_admin_status_resources.append(resource_name)
+
     def _test_create_resource(self, resource, cmd, name, myid, args,
                               position_names, position_values,
                               tenant_id=None, tags=None, admin_state_up=True,
                               extra_body=None, cmd_resource=None,
-                              parent_id=None, **kwargs):
+                              parent_id=None, no_api_call=False,
+                              expected_exception=None,
+                              **kwargs):
         self.mox.StubOutWithMock(cmd, "get_client")
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         cmd.get_client().MultipleTimes().AndReturn(self.client)
-        non_admin_status_resources = ['subnet', 'floatingip', 'security_group',
-                                      'security_group_rule', 'qos_queue',
-                                      'network_gateway', 'gateway_device',
-                                      'credential', 'network_profile',
-                                      'policy_profile', 'ikepolicy',
-                                      'ipsecpolicy', 'metering_label',
-                                      'metering_label_rule', 'net_partition',
-                                      'fox_socket', 'subnetpool']
         if not cmd_resource:
             cmd_resource = resource
-        if (resource in non_admin_status_resources):
+        if (resource in self.non_admin_status_resources):
             body = {resource: {}, }
         else:
             body = {resource: {'admin_state_up': admin_state_up, }, }
@@ -257,21 +267,26 @@ class CLITestV20Base(base.BaseTestCase):
             mox_body = MyComparator(body, self.client)
         else:
             mox_body = self.client.serialize(body)
-        self.client.httpclient.request(
-            end_url(path, format=self.format), 'POST',
-            body=mox_body,
-            headers=mox.ContainsKeyValue(
-                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200), resstr))
+        if not no_api_call:
+            self.client.httpclient.request(
+                end_url(path, format=self.format), 'POST',
+                body=mox_body,
+                headers=mox.ContainsKeyValue(
+                    'X-Auth-Token', TOKEN)).AndReturn((MyResp(200), resstr))
         args.extend(['--request-format', self.format])
         self.mox.ReplayAll()
         cmd_parser = cmd.get_parser('create_' + resource)
-        shell.run_command(cmd, cmd_parser, args)
+        if expected_exception:
+            self.assertRaises(expected_exception,
+                              shell.run_command, cmd, cmd_parser, args)
+        else:
+            shell.run_command(cmd, cmd_parser, args)
+            _str = self.fake_stdout.make_string()
+            self.assertIn(myid, _str)
+            if name:
+                self.assertIn(name, _str)
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
-        _str = self.fake_stdout.make_string()
-        self.assertIn(myid, _str)
-        if name:
-            self.assertIn(name, _str)
 
     def _test_list_columns(self, cmd, resources,
                            resources_out, args=('-f', 'json'),
@@ -304,7 +319,7 @@ class CLITestV20Base(base.BaseTestCase):
                              fields_1=(), fields_2=(), page_size=None,
                              sort_key=(), sort_dir=(), response_contents=None,
                              base_args=None, path=None, cmd_resources=None,
-                             parent_id=None, output_format=None):
+                             parent_id=None, output_format=None, query=""):
         self.mox.StubOutWithMock(cmd, "get_client")
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         cmd.get_client().MultipleTimes().AndReturn(self.client)
@@ -319,7 +334,6 @@ class CLITestV20Base(base.BaseTestCase):
         self.client.format = self.format
         resstr = self.client.serialize(reses)
         # url method body
-        query = ""
         args = base_args if base_args is not None else []
         if detail:
             args.append('-D')
@@ -406,7 +420,7 @@ class CLITestV20Base(base.BaseTestCase):
     def _test_list_resources_with_pagination(self, resources, cmd,
                                              base_args=None,
                                              cmd_resources=None,
-                                             parent_id=None):
+                                             parent_id=None, query=""):
         self.mox.StubOutWithMock(cmd, "get_client")
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         cmd.get_client().MultipleTimes().AndReturn(self.client)
@@ -427,7 +441,7 @@ class CLITestV20Base(base.BaseTestCase):
         resstr1 = self.client.serialize(reses1)
         resstr2 = self.client.serialize(reses2)
         self.client.httpclient.request(
-            end_url(path, "", format=self.format), 'GET',
+            end_url(path, query, format=self.format), 'GET',
             body=None,
             headers=mox.ContainsKeyValue(
                 'X-Auth-Token', TOKEN)).AndReturn((MyResp(200), resstr1))
@@ -683,6 +697,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
              exceptions.ExternalIpAddressExhaustedClient, 400),
             ('OverQuota', exceptions.OverQuotaClient, 409),
             ('InvalidIpForNetwork', exceptions.InvalidIpForNetworkClient, 400),
+            ('InvalidIpForSubnet', exceptions.InvalidIpForSubnetClient, 400),
         ]
 
         error_msg = 'dummy exception message'

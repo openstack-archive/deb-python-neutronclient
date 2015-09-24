@@ -20,6 +20,7 @@ from neutronclient.common import exceptions
 from neutronclient.common import utils
 from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
+from neutronclient.neutron.v2_0.qos import policy as qos_policy
 
 
 def _format_subnets(network):
@@ -101,7 +102,7 @@ class ShowNetwork(neutronV20.ShowCommand):
     resource = 'network'
 
 
-class CreateNetwork(neutronV20.CreateCommand):
+class CreateNetwork(neutronV20.CreateCommand, qos_policy.CreateQosPolicyMixin):
     """Create a network for a given tenant."""
 
     resource = 'network'
@@ -119,11 +120,6 @@ class CreateNetwork(neutronV20.CreateCommand):
             '--shared',
             action='store_true',
             help=_('Set the network as shared.'),
-            default=argparse.SUPPRESS)
-        parser.add_argument(
-            '--router:external',
-            action='store_true',
-            help=_('Set network as external, it is only available for admin'),
             default=argparse.SUPPRESS)
         parser.add_argument(
             '--provider:network_type',
@@ -149,16 +145,21 @@ class CreateNetwork(neutronV20.CreateCommand):
             'name', metavar='NAME',
             help=_('Name of network to create.'))
 
+        self.add_arguments_qos_policy(parser)
+
     def args2body(self, parsed_args):
         body = {'network': {
             'name': parsed_args.name,
             'admin_state_up': parsed_args.admin_state}, }
         neutronV20.update_dict(parsed_args, body['network'],
-                               ['shared', 'tenant_id', 'router:external',
+                               ['shared', 'tenant_id',
                                 'vlan_transparent',
                                 'provider:network_type',
                                 'provider:physical_network',
                                 'provider:segmentation_id'])
+
+        self.args2body_qos_policy(parsed_args, body['network'])
+
         return body
 
 
@@ -168,7 +169,15 @@ class DeleteNetwork(neutronV20.DeleteCommand):
     resource = 'network'
 
 
-class UpdateNetwork(neutronV20.UpdateCommand):
+class UpdateNetwork(neutronV20.UpdateCommand, qos_policy.UpdateQosPolicyMixin):
     """Update network's information."""
 
     resource = 'network'
+
+    def add_known_arguments(self, parser):
+        self.add_arguments_qos_policy(parser)
+
+    def args2body(self, parsed_args):
+        body = {'network': {}}
+        self.args2body_qos_policy(parsed_args, body['network'])
+        return body

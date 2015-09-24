@@ -18,7 +18,7 @@ function generate_testr_results {
     if [ -f .testrepository/0 ]; then
         sudo .tox/functional/bin/testr last --subunit > $WORKSPACE/testrepository.subunit
         sudo mv $WORKSPACE/testrepository.subunit $BASE/logs/testrepository.subunit
-        sudo .tox/functional/bin/python /usr/local/jenkins/slave_scripts/subunit2html.py $BASE/logs/testrepository.subunit $BASE/logs/testr_results.html
+        sudo /usr/os-testr-env/bin/subunit2html $BASE/logs/testrepository.subunit $BASE/logs/testr_results.html
         sudo gzip -9 $BASE/logs/testrepository.subunit
         sudo gzip -9 $BASE/logs/testr_results.html
         sudo chown jenkins:jenkins $BASE/logs/testrepository.subunit.gz $BASE/logs/testr_results.html.gz
@@ -28,20 +28,34 @@ function generate_testr_results {
 
 export NEUTRONCLIENT_DIR="$BASE/new/python-neutronclient"
 
+sudo chown -R jenkins:stack $NEUTRONCLIENT_DIR
+
 # Get admin credentials
 cd $BASE/new/devstack
 source openrc admin admin
 
+# Store these credentials into the config file
+CREDS_FILE=$NEUTRONCLIENT_DIR/functional_creds.conf
+cat <<EOF > $CREDS_FILE
+# Credentials for functional testing
+[auth]
+uri = $OS_AUTH_URL
+
+[admin]
+user = $OS_USERNAME
+tenant = $OS_TENANT_NAME
+pass = $OS_PASSWORD
+EOF
+
 # Go to the neutronclient dir
 cd $NEUTRONCLIENT_DIR
 
-sudo chown -R jenkins:stack $NEUTRONCLIENT_DIR
-
 # Run tests
+VENV=${1:-"functional"}
 echo "Running neutronclient functional test suite"
 set +e
 # Preserve env for OS_ credentials
-sudo -E -H -u jenkins tox -efunctional
+sudo -E -H -u jenkins tox -e $VENV
 EXIT_CODE=$?
 set -e
 

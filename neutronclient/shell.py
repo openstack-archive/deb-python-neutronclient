@@ -45,6 +45,7 @@ from neutronclient.common import exceptions as exc
 from neutronclient.common import extension as client_extension
 from neutronclient.common import utils
 from neutronclient.i18n import _
+from neutronclient.neutron.v2_0 import address_scope
 from neutronclient.neutron.v2_0 import agent
 from neutronclient.neutron.v2_0 import agentscheduler
 from neutronclient.neutron.v2_0 import credential
@@ -63,7 +64,6 @@ from neutronclient.neutron.v2_0.lb.v2 import member as lbaas_member
 from neutronclient.neutron.v2_0.lb.v2 import pool as lbaas_pool
 from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import metering
-from neutronclient.neutron.v2_0.nec import packetfilter
 from neutronclient.neutron.v2_0 import netpartition
 from neutronclient.neutron.v2_0 import network
 from neutronclient.neutron.v2_0 import networkprofile
@@ -71,7 +71,11 @@ from neutronclient.neutron.v2_0.nsx import networkgateway
 from neutronclient.neutron.v2_0.nsx import qos_queue
 from neutronclient.neutron.v2_0 import policyprofile
 from neutronclient.neutron.v2_0 import port
+from neutronclient.neutron.v2_0.qos import bandwidth_limit_rule
+from neutronclient.neutron.v2_0.qos import policy as qos_policy
+from neutronclient.neutron.v2_0.qos import rule as qos_rule
 from neutronclient.neutron.v2_0 import quota
+from neutronclient.neutron.v2_0 import rbac
 from neutronclient.neutron.v2_0 import router
 from neutronclient.neutron.v2_0 import securitygroup
 from neutronclient.neutron.v2_0 import servicetype
@@ -355,11 +359,37 @@ COMMAND_V2 = {
     'nuage-netpartition-show': netpartition.ShowNetPartition,
     'nuage-netpartition-create': netpartition.CreateNetPartition,
     'nuage-netpartition-delete': netpartition.DeleteNetPartition,
-    'nec-packet-filter-list': packetfilter.ListPacketFilter,
-    'nec-packet-filter-show': packetfilter.ShowPacketFilter,
-    'nec-packet-filter-create': packetfilter.CreatePacketFilter,
-    'nec-packet-filter-update': packetfilter.UpdatePacketFilter,
-    'nec-packet-filter-delete': packetfilter.DeletePacketFilter,
+    'rbac-create': rbac.CreateRBACPolicy,
+    'rbac-update': rbac.UpdateRBACPolicy,
+    'rbac-list': rbac.ListRBACPolicy,
+    'rbac-show': rbac.ShowRBACPolicy,
+    'rbac-delete': rbac.DeleteRBACPolicy,
+    'address-scope-list': address_scope.ListAddressScope,
+    'address-scope-show': address_scope.ShowAddressScope,
+    'address-scope-create': address_scope.CreateAddressScope,
+    'address-scope-delete': address_scope.DeleteAddressScope,
+    'address-scope-update': address_scope.UpdateAddressScope,
+    'qos-policy-list': qos_policy.ListQoSPolicy,
+    'qos-policy-show': qos_policy.ShowQoSPolicy,
+    'qos-policy-create': qos_policy.CreateQoSPolicy,
+    'qos-policy-update': qos_policy.UpdateQoSPolicy,
+    'qos-policy-delete': qos_policy.DeleteQoSPolicy,
+    'qos-bandwidth-limit-rule-create': (
+        bandwidth_limit_rule.CreateQoSBandwidthLimitRule
+    ),
+    'qos-bandwidth-limit-rule-show': (
+        bandwidth_limit_rule.ShowQoSBandwidthLimitRule
+    ),
+    'qos-bandwidth-limit-rule-list': (
+        bandwidth_limit_rule.ListQoSBandwidthLimitRules
+    ),
+    'qos-bandwidth-limit-rule-update': (
+        bandwidth_limit_rule.UpdateQoSBandwidthLimitRule
+    ),
+    'qos-bandwidth-limit-rule-delete': (
+        bandwidth_limit_rule.DeleteQoSBandwidthLimitRule
+    ),
+    'qos-available-rule-types': qos_rule.ListQoSRuleTypes,
 }
 
 COMMANDS = {'2.0': COMMAND_V2}
@@ -704,9 +734,9 @@ class NeutronShell(app.App):
     def _register_extensions(self, version):
         for name, module in itertools.chain(
                 client_extension._discover_via_entry_points()):
-            self._extend_shell_commands(module, version)
+            self._extend_shell_commands(name, module, version)
 
-    def _extend_shell_commands(self, module, version):
+    def _extend_shell_commands(self, name, module, version):
         classes = inspect.getmembers(module, inspect.isclass)
         for cls_name, cls in classes:
             if (issubclass(cls, client_extension.NeutronClientExtension) and
@@ -716,6 +746,9 @@ class NeutronShell(app.App):
                     if version not in cls.versions:
                         continue
                 try:
+                    name_prefix = "[%s]" % name
+                    cls.__doc__ = ("%s %s" % (name_prefix, cls.__doc__) if
+                                   cls.__doc__ else name_prefix)
                     self.command_manager.add_command(cmd, cls)
                     self.commands[version][cmd] = cls
                 except TypeError:

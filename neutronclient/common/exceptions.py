@@ -144,13 +144,11 @@ class InvalidIpForNetworkClient(BadRequest):
     pass
 
 
-class OverQuotaClient(Conflict):
+class InvalidIpForSubnetClient(BadRequest):
     pass
 
 
-# TODO(amotoki): It is unused in Neutron, but it is referred to
-# in Horizon code. After Horizon code is updated, remove it.
-class AlreadyAttachedClient(Conflict):
+class OverQuotaClient(Conflict):
     pass
 
 

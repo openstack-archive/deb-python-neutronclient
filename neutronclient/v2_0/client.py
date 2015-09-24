@@ -341,6 +341,8 @@ class Client(ClientBase):
     subnet_path = "/subnets/%s"
     subnetpools_path = "/subnetpools"
     subnetpool_path = "/subnetpools/%s"
+    address_scopes_path = "/address-scopes"
+    address_scope_path = "/address-scopes/%s"
     quotas_path = "/quotas"
     quota_path = "/quotas/%s"
     extensions_path = "/extensions"
@@ -406,8 +408,6 @@ class Client(ClientBase):
     metering_label_path = "/metering/metering-labels/%s"
     metering_label_rules_path = "/metering/metering-label-rules"
     metering_label_rule_path = "/metering/metering-label-rules/%s"
-    packet_filters_path = "/packet_filters"
-    packet_filter_path = "/packet_filters/%s"
 
     DHCP_NETS = '/dhcp-networks'
     DHCP_AGENTS = '/dhcp-agents'
@@ -427,6 +427,14 @@ class Client(ClientBase):
     firewall_path = "/fw/firewalls/%s"
     net_partitions_path = "/net-partitions"
     net_partition_path = "/net-partitions/%s"
+    rbac_policies_path = "/rbac-policies"
+    rbac_policy_path = "/rbac-policies/%s"
+    qos_policies_path = "/qos/policies"
+    qos_policy_path = "/qos/policies/%s"
+    qos_bandwidth_limit_rules_path = "/qos/policies/%s/bandwidth_limit_rules"
+    qos_bandwidth_limit_rule_path = "/qos/policies/%s/bandwidth_limit_rules/%s"
+    qos_rule_types_path = "/qos/rule-types"
+    qos_rule_type_path = "/qos/rule-types/%s"
 
     # API has no way to report plurals, so we have to hard code them
     EXTED_PLURALS = {'routers': 'router',
@@ -451,13 +459,18 @@ class Client(ClientBase):
                      'metering_labels': 'metering_label',
                      'metering_label_rules': 'metering_label_rule',
                      'net_partitions': 'net_partition',
-                     'packet_filters': 'packet_filter',
                      'loadbalancers': 'loadbalancer',
                      'listeners': 'listener',
                      'lbaas_pools': 'lbaas_pool',
                      'lbaas_healthmonitors': 'lbaas_healthmonitor',
                      'lbaas_members': 'lbaas_member',
                      'healthmonitors': 'healthmonitor',
+                     'rbac_policies': 'rbac_policy',
+                     'address_scopes': 'address_scope',
+                     'qos_policies': 'qos_policy',
+                     'policies': 'policy',
+                     'bandwidth_limit_rules': 'bandwidth_limit_rule',
+                     'rule_types': 'rule_type',
                      }
 
     @APIParamsCall
@@ -658,6 +671,33 @@ class Client(ClientBase):
     def delete_router(self, router):
         """Deletes the specified router."""
         return self.delete(self.router_path % (router))
+
+    @APIParamsCall
+    def list_address_scopes(self, retrieve_all=True, **_params):
+        """Fetches a list of all address scopes for a tenant."""
+        return self.list('address_scopes', self.address_scopes_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_address_scope(self, address_scope, **_params):
+        """Fetches information of a certain address scope."""
+        return self.get(self.address_scope_path % (address_scope),
+                        params=_params)
+
+    @APIParamsCall
+    def create_address_scope(self, body=None):
+        """Creates a new address scope."""
+        return self.post(self.address_scopes_path, body=body)
+
+    @APIParamsCall
+    def update_address_scope(self, address_scope, body=None):
+        """Updates a address scope."""
+        return self.put(self.address_scope_path % (address_scope), body=body)
+
+    @APIParamsCall
+    def delete_address_scope(self, address_scope):
+        """Deletes the specified address scope."""
+        return self.delete(self.address_scope_path % (address_scope))
 
     @APIParamsCall
     def add_interface_router(self, router, body=None):
@@ -1574,61 +1614,148 @@ class Client(ClientBase):
         return self.delete(self.net_partition_path % netpartition)
 
     @APIParamsCall
-    def create_packet_filter(self, body=None):
-        """Create a new packet filter."""
-        return self.post(self.packet_filters_path, body=body)
+    def create_rbac_policy(self, body=None):
+        """Create a new RBAC policy."""
+        return self.post(self.rbac_policies_path, body=body)
 
     @APIParamsCall
-    def update_packet_filter(self, packet_filter_id, body=None):
-        """Update a packet filter."""
-        return self.put(self.packet_filter_path % packet_filter_id, body=body)
+    def update_rbac_policy(self, rbac_policy_id, body=None):
+        """Update a RBAC policy."""
+        return self.put(self.rbac_policy_path % rbac_policy_id, body=body)
 
     @APIParamsCall
-    def list_packet_filters(self, retrieve_all=True, **_params):
-        """Fetch a list of all packet filters for a tenant."""
-        return self.list('packet_filters', self.packet_filters_path,
+    def list_rbac_policies(self, retrieve_all=True, **_params):
+        """Fetch a list of all RBAC policies for a tenant."""
+        return self.list('rbac_policies', self.rbac_policies_path,
                          retrieve_all, **_params)
 
     @APIParamsCall
-    def show_packet_filter(self, packet_filter_id, **_params):
-        """Fetch information of a certain packet filter."""
-        return self.get(self.packet_filter_path % packet_filter_id,
+    def show_rbac_policy(self, rbac_policy_id, **_params):
+        """Fetch information of a certain RBAC policy."""
+        return self.get(self.rbac_policy_path % rbac_policy_id,
                         params=_params)
 
     @APIParamsCall
-    def delete_packet_filter(self, packet_filter_id):
-        """Delete the specified packet filter."""
-        return self.delete(self.packet_filter_path % packet_filter_id)
+    def delete_rbac_policy(self, rbac_policy_id):
+        """Delete the specified RBAC policy."""
+        return self.delete(self.rbac_policy_path % rbac_policy_id)
+
+    @APIParamsCall
+    def list_qos_policies(self, retrieve_all=True, **_params):
+        """Fetches a list of all qos policies for a tenant."""
+        # Pass filters in "params" argument to do_request
+        return self.list('policies', self.qos_policies_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_qos_policy(self, qos_policy, **_params):
+        """Fetches information of a certain qos policy."""
+        return self.get(self.qos_policy_path % qos_policy,
+                        params=_params)
+
+    @APIParamsCall
+    def create_qos_policy(self, body=None):
+        """Creates a new qos policy."""
+        return self.post(self.qos_policies_path, body=body)
+
+    @APIParamsCall
+    def update_qos_policy(self, qos_policy, body=None):
+        """Updates a qos policy."""
+        return self.put(self.qos_policy_path % qos_policy,
+                        body=body)
+
+    @APIParamsCall
+    def delete_qos_policy(self, qos_policy):
+        """Deletes the specified qos policy."""
+        return self.delete(self.qos_policy_path % qos_policy)
+
+    @APIParamsCall
+    def list_qos_rule_types(self, retrieve_all=True, **_params):
+        """List available qos rule types."""
+        return self.list('rule_types', self.qos_rule_types_path,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def list_bandwidth_limit_rules(self, policy_id,
+                                   retrieve_all=True, **_params):
+        """Fetches a list of all qos rules for the given policy."""
+        return self.list('bandwidth_limit_rules',
+                         self.qos_bandwidth_limit_rules_path % policy_id,
+                         retrieve_all, **_params)
+
+    @APIParamsCall
+    def show_bandwidth_limit_rule(self, rule, policy, body=None):
+        """Creates a new bandwidth limit rule."""
+        return self.get(self.qos_bandwidth_limit_rule_path %
+                        (policy, rule), body=body)
+
+    @APIParamsCall
+    def create_bandwidth_limit_rule(self, policy, body=None):
+        """Creates a new bandwidth limit rule."""
+        return self.post(self.qos_bandwidth_limit_rules_path % policy,
+                         body=body)
+
+    @APIParamsCall
+    def update_bandwidth_limit_rule(self, rule, policy, body=None):
+        """Updates a bandwidth limit rule."""
+        return self.put(self.qos_bandwidth_limit_rule_path %
+                        (policy, rule), body=body)
+
+    @APIParamsCall
+    def delete_bandwidth_limit_rule(self, rule, policy):
+        """Deletes a bandwidth limit rule."""
+        return self.delete(self.qos_bandwidth_limit_rule_path %
+                           (policy, rule))
 
     def __init__(self, **kwargs):
         """Initialize a new client for the Neutron v2.0 API."""
         super(Client, self).__init__(**kwargs)
         self._register_extensions(self.version)
 
-    def extend_show(self, resource_plural, path):
+    def extend_show(self, resource_plural, path, parent_resource):
         def _fx(obj, **_params):
             return self.show_ext(path, obj, **_params)
-        setattr(self, "show_%s" % resource_plural, _fx)
 
-    def extend_list(self, resource_plural, path):
+        def _parent_fx(parent_id, obj, **_params):
+            return self.show_ext(path % parent_id, obj, **_params)
+        fn = _fx if not parent_resource else _parent_fx
+        setattr(self, "show_%s" % resource_plural, fn)
+
+    def extend_list(self, resource_plural, path, parent_resource):
         def _fx(**_params):
             return self.list_ext(path, **_params)
-        setattr(self, "list_%s" % resource_plural, _fx)
 
-    def extend_create(self, resource_singular, path):
+        def _parent_fx(parent_id, **_params):
+            return self.list_ext(path % parent_id, **_params)
+        fn = _fx if not parent_resource else _parent_fx
+        setattr(self, "list_%s" % resource_plural, fn)
+
+    def extend_create(self, resource_singular, path, parent_resource):
         def _fx(body=None):
             return self.create_ext(path, body)
-        setattr(self, "create_%s" % resource_singular, _fx)
 
-    def extend_delete(self, resource_singular, path):
+        def _parent_fx(parent_id, body=None):
+            return self.create_ext(path % parent_id, body)
+        fn = _fx if not parent_resource else _parent_fx
+        setattr(self, "create_%s" % resource_singular, fn)
+
+    def extend_delete(self, resource_singular, path, parent_resource):
         def _fx(obj):
             return self.delete_ext(path, obj)
-        setattr(self, "delete_%s" % resource_singular, _fx)
 
-    def extend_update(self, resource_singular, path):
+        def _parent_fx(parent_id, obj):
+            return self.delete_ext(path % parent_id, obj)
+        fn = _fx if not parent_resource else _parent_fx
+        setattr(self, "delete_%s" % resource_singular, fn)
+
+    def extend_update(self, resource_singular, path, parent_resource):
         def _fx(obj, body=None):
             return self.update_ext(path, obj, body)
-        setattr(self, "update_%s" % resource_singular, _fx)
+
+        def _parent_fx(parent_id, obj, body=None):
+            return self.update_ext(path % parent_id, obj, body)
+        fn = _fx if not parent_resource else _parent_fx
+        setattr(self, "update_%s" % resource_singular, fn)
 
     def _extend_client_with_module(self, module, version):
         classes = inspect.getmembers(module, inspect.isclass)
@@ -1636,20 +1763,27 @@ class Client(ClientBase):
             if hasattr(cls, 'versions'):
                 if version not in cls.versions:
                     continue
+            parent_resource = getattr(cls, 'parent_resource', None)
             if issubclass(cls, client_extension.ClientExtensionList):
-                self.extend_list(cls.resource_plural, cls.object_path)
+                self.extend_list(cls.resource_plural, cls.object_path,
+                                 parent_resource)
             elif issubclass(cls, client_extension.ClientExtensionCreate):
-                self.extend_create(cls.resource, cls.object_path)
+                self.extend_create(cls.resource, cls.object_path,
+                                   parent_resource)
             elif issubclass(cls, client_extension.ClientExtensionUpdate):
-                self.extend_update(cls.resource, cls.resource_path)
+                self.extend_update(cls.resource, cls.resource_path,
+                                   parent_resource)
             elif issubclass(cls, client_extension.ClientExtensionDelete):
-                self.extend_delete(cls.resource, cls.resource_path)
+                self.extend_delete(cls.resource, cls.resource_path,
+                                   parent_resource)
             elif issubclass(cls, client_extension.ClientExtensionShow):
-                self.extend_show(cls.resource, cls.resource_path)
+                self.extend_show(cls.resource, cls.resource_path,
+                                 parent_resource)
             elif issubclass(cls, client_extension.NeutronClientExtension):
                 setattr(self, "%s_path" % cls.resource_plural,
                         cls.object_path)
                 setattr(self, "%s_path" % cls.resource, cls.resource_path)
+                self.EXTED_PLURALS.update({cls.resource_plural: cls.resource})
 
     def _register_extensions(self, version):
         for name, module in itertools.chain(
