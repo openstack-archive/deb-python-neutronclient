@@ -21,6 +21,7 @@ endif
 override_dh_auto_clean:
 	dh_auto_clean -O--buildsystem=python_distutils
 	rm -rf python_neutronclient.egg-info doc/man .testrepository
+	rm -rf .eggs
 
 #override_dh_installman:
 #ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
