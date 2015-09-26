@@ -1,10 +1,14 @@
-python-neutronclient (1:3.1.0-1) UNRELEASED; urgency=medium
+python-neutronclient (1:3.1.0-1) experimental; urgency=medium
 
+  [ Corey Bryant ]
   * New upstream release.
   * d/control: Align dependencies with upstream.
   * d/control: Bump minimum version of python-pbr to 1.8.
 
- -- Corey Bryant <corey.bryant@canonical.com>  Thu, 24 Sep 2015 11:54:09 -0400
+  [ Thomas Goirand ]
+  * Removed version of (build-)depends when already satisfied in Trusty.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 26 Sep 2015 17:21:13 +0000
 
 python-neutronclient (1:2.6.0-1) experimental; urgency=medium
 
