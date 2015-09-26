@@ -6,12 +6,16 @@ export OSLO_PACKAGE_VERSION=$(VERSION)
 %:
 	dh $@ --buildsystem=python_distutils --with python2
 
+override_dh_auto_install:
+	dh_auto_install -O--buildsystem=python_distutils
+	install -D -m 0644 tools/neutron.bash_completion $(CURDIR)/debian/python-neutronclient/usr/share/bash-completion/completions/neutron
+
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
 	rm -rf .testrepository
 	testr init
-	set -e && \
-		TEMP_REZ=`mktemp -t` && \
+	set -e ; \
+		TEMP_REZ=`mktemp -t` ; \
 		PYTHONPATH=$(CURDIR) testr run --subunit | tee $$TEMP_REZ | subunit2pyunit ; \
 		cat $$TEMP_REZ | subunit-filter -s --no-passthrough | subunit-stats ; \
 		rm -f $$TEMP_REZ ;

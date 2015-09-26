@@ -8,6 +8,7 @@ python-neutronclient (1:3.1.0-1) experimental; urgency=medium
   [ Thomas Goirand ]
   * Removed version of (build-)depends when already satisfied in Trusty.
   * Dropped Replaces+Breaks+Provides for quantumclient.
+  * Fixed the install path of the bash-completion script.
 
  -- Thomas Goirand <zigo@debian.org>  Sat, 26 Sep 2015 17:21:13 +0000
 
