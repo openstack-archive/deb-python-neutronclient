@@ -42,9 +42,6 @@ XS-Testsuite: autopkgtest
 
 Package: python-neutronclient
 Architecture: all
-Replaces: python-quantumclient, quantum-client
-Provides: python-quantumclient
-Breaks: python-quantumclient
 Depends: python-babel,
          python-cliff (>= 1.14.0),
          python-iso8601,
