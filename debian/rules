@@ -20,6 +20,8 @@ override_dh_auto_install:
 	done
 	rm -f $(CURDIR)/debian/python*/usr/lib/python*/dist-packages/*.pth
 	install -D -m 0644 tools/neutron.bash_completion $(CURDIR)/debian/python-neutronclient-doc/usr/share/bash-completion/completions/neutron
+	mv $(CURDIR)/debian/python-neutronclient/usr/bin/neutron $(CURDIR)/debian/python-neutronclient/usr/bin/python2-neutron
+	mv $(CURDIR)/debian/python3-neutronclient/usr/bin/neutron $(CURDIR)/debian/python3-neutronclient/usr/bin/python3-neutron
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
