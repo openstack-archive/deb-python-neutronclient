@@ -23,7 +23,7 @@ from neutronclient.tests.unit import test_cli20
 
 class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
     def test_create_router(self):
-        """Create router: router1."""
+        # Create router: router1.
         resource = 'router'
         cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
         name = 'router1'
@@ -35,7 +35,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_router_tenant(self):
-        """Create router: --tenant_id tenantid myname."""
+        # Create router: --tenant_id tenantid myname.
         resource = 'router'
         cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -48,7 +48,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    tenant_id='tenantid')
 
     def test_create_router_admin_state(self):
-        """Create router: --admin_state_down myname."""
+        # Create router: --admin_state_down myname.
         resource = 'router'
         cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -61,7 +61,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    admin_state_up=False)
 
     def _create_router_distributed_or_ha(self, distributed=None, ha=None):
-        """Create router: --distributed distributed --ha ha myname."""
+        # Create router: --distributed distributed --ha ha myname.
         resource = 'router'
         cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -84,7 +84,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    **expected)
 
     def test_create_router_distributed_True(self):
-        """Create router: --distributed=True."""
+        # Create router: --distributed=True.
         self._create_router_distributed_or_ha(distributed='True')
 
     def test_create_router_ha_with_True(self):
@@ -100,19 +100,33 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
         self._create_router_distributed_or_ha(ha='false')
 
     def test_create_router_distributed_False(self):
-        """Create router: --distributed=False."""
+        # Create router: --distributed=False.
         self._create_router_distributed_or_ha(distributed='False')
 
     def test_create_router_distributed_true(self):
-        """Create router: --distributed=true."""
+        # Create router: --distributed=true.
         self._create_router_distributed_or_ha(distributed='true')
 
     def test_create_router_distributed_false(self):
-        """Create router: --distributed=false."""
+        # Create router: --distributed=false.
         self._create_router_distributed_or_ha(distributed='false')
 
+    def test_create_router_with_az_hint(self):
+        # Create router: --availability-zone-hint zone1
+        # --availability-zone-hint zone2.
+        resource = 'router'
+        cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+        args = ['--availability-zone-hint', 'zone1',
+                '--availability-zone-hint', 'zone2', name]
+        position_names = ['availability_zone_hints', 'name']
+        position_values = [['zone1', 'zone2'], name]
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values)
+
     def test_list_routers_detail(self):
-        """list routers: -D."""
+        # list routers: -D.
         resources = "routers"
         cmd = router.ListRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_list_resources(resources, cmd, True)
@@ -123,9 +137,8 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
         self._test_list_resources_with_pagination(resources, cmd)
 
     def test_list_routers_sort(self):
-        """list routers: --sort-key name --sort-key id --sort-key asc
-        --sort-key desc
-        """
+        # list routers:
+        # --sort-key name --sort-key id --sort-key asc --sort-key desc
         resources = "routers"
         cmd = router.ListRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_list_resources(resources, cmd,
@@ -133,20 +146,20 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                   sort_dir=["asc", "desc"])
 
     def test_list_routers_limit(self):
-        """list routers: -P."""
+        # list routers: -P.
         resources = "routers"
         cmd = router.ListRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_list_resources(resources, cmd, page_size=1000)
 
     def test_update_router_exception(self):
-        """Update router: myid."""
+        # Update router: myid.
         resource = 'router'
         cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
         self.assertRaises(exceptions.CommandError, self._test_update_resource,
                           resource, cmd, 'myid', ['myid'], {})
 
     def test_update_router(self):
-        """Update router: myid --name myname --tags a b."""
+        # Update router: myid --name myname --tags a b.
         resource = 'router'
         cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -155,7 +168,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_update_router_admin_state(self):
-        """Update router: myid --admin-state-up <True|False>."""
+        # Update router: myid --admin-state-up <True|False>.
         resource = 'router'
         cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -176,7 +189,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_update_router_distributed(self):
-        """Update router: myid --distributed <True|False>."""
+        # Update router: myid --distributed <True|False>.
         resource = 'router'
         cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -196,8 +209,66 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    {'distributed': 'false'}
                                    )
 
+    def test_update_router_no_routes(self):
+        # Update router: myid --no-routes
+        resource = 'router'
+        cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--no-routes'],
+                                   {'routes': None})
+
+    def test_update_router_add_route(self):
+        # Update router: myid --route destination=10.0.3.0/24,nexthop=10.0.0.10
+        resource = 'router'
+        cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
+        myid = 'myid'
+        args = [myid,
+                '--route',
+                'destination=10.0.3.0/24,nexthop=10.0.0.10']
+        routes = [{'destination': '10.0.3.0/24',
+                  'nexthop': '10.0.0.10'}]
+        updatefields = {'routes': routes}
+        self._test_update_resource(resource, cmd, myid, args, updatefields)
+
+    def test_update_router_add_routes(self):
+        # Update router: myid --route destination=10.0.3.0/24,nexthop=10.0.0.10
+        # --route destination=fd7a:1d63:2063::/64,
+        #         nexthop=fd7a:1d63:2063:0:f816:3eff:fe0e:a697
+        resource = 'router'
+        cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
+        myid = 'myid'
+        args = [myid,
+                '--route',
+                'destination=10.0.3.0/24,nexthop=10.0.0.10',
+                '--route',
+                'destination=fd7a:1d63:2063::/64,'
+                'nexthop=fd7a:1d63:2063:0:f816:3eff:fe0e:a697']
+        routes = [{'destination': '10.0.3.0/24',
+                  'nexthop': '10.0.0.10'},
+                  {'destination': 'fd7a:1d63:2063::/64',
+                  'nexthop': 'fd7a:1d63:2063:0:f816:3eff:fe0e:a697'}]
+        updatefields = {'routes': routes}
+        self._test_update_resource(resource, cmd, myid, args, updatefields)
+
+    def test_update_router_no_routes_with_add_route(self):
+        # Update router: --no-routes with --route
+        resource = 'router'
+        cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
+        myid = 'myid'
+        args = [myid,
+                '--no-routes',
+                '--route',
+                'destination=10.0.3.0/24,nexthop=10.0.0.10']
+        actual_error_code = 0
+        try:
+            self._test_update_resource(resource, cmd, myid, args, None)
+        except SystemExit:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            actual_error_code = exc_value.code
+        self.assertEqual(2, actual_error_code)
+
     def test_delete_router(self):
-        """Delete router: myid."""
+        # Delete router: myid.
         resource = 'router'
         cmd = router.DeleteRouter(test_cli20.MyApp(sys.stdout), None)
         myid = 'myid'
@@ -205,7 +276,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
         self._test_delete_resource(resource, cmd, myid, args)
 
     def test_show_router(self):
-        """Show router: myid."""
+        # Show router: myid.
         resource = 'router'
         cmd = router.ShowRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['--fields', 'id', '--fields', 'name', self.test_id]
@@ -228,43 +299,43 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                           body, retval)
 
     def test_add_interface_compat(self):
-        """Add interface to router: myid subnetid."""
+        # Add interface to router: myid subnetid.
         cmd = router.AddInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'subnetid']
         self._test_add_remove_interface('add', 'subnet', cmd, args)
 
     def test_add_interface_by_subnet(self):
-        """Add interface to router: myid subnet=subnetid."""
+        # Add interface to router: myid subnet=subnetid.
         cmd = router.AddInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'subnet=subnetid']
         self._test_add_remove_interface('add', 'subnet', cmd, args)
 
     def test_add_interface_by_port(self):
-        """Add interface to router: myid port=portid."""
+        # Add interface to router: myid port=portid.
         cmd = router.AddInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'port=portid']
         self._test_add_remove_interface('add', 'port', cmd, args)
 
     def test_del_interface_compat(self):
-        """Delete interface from router: myid subnetid."""
+        # Delete interface from router: myid subnetid.
         cmd = router.RemoveInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'subnetid']
         self._test_add_remove_interface('remove', 'subnet', cmd, args)
 
     def test_del_interface_by_subnet(self):
-        """Delete interface from router: myid subnet=subnetid."""
+        # Delete interface from router: myid subnet=subnetid.
         cmd = router.RemoveInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'subnet=subnetid']
         self._test_add_remove_interface('remove', 'subnet', cmd, args)
 
     def test_del_interface_by_port(self):
-        """Delete interface from router: myid port=portid."""
+        # Delete interface from router: myid port=portid.
         cmd = router.RemoveInterfaceRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'port=portid']
         self._test_add_remove_interface('remove', 'port', cmd, args)
 
     def test_set_gateway(self):
-        """Set external gateway for router: myid externalid."""
+        # Set external gateway for router: myid externalid.
         resource = 'router'
         cmd = router.SetGatewayRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'externalid']
@@ -275,7 +346,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_set_gateway_disable_snat(self):
-        """set external gateway for router: myid externalid."""
+        # set external gateway for router: myid externalid.
         resource = 'router'
         cmd = router.SetGatewayRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'externalid', '--disable-snat']
@@ -287,7 +358,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_set_gateway_external_ip(self):
-        """set external gateway for router: myid externalid --fixed-ip ..."""
+        # set external gateway for router: myid externalid --fixed-ip ...
         resource = 'router'
         cmd = router.SetGatewayRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'externalid', '--fixed-ip', 'ip_address=10.0.0.2']
@@ -300,7 +371,7 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_set_gateway_external_subnet(self):
-        """set external gateway for router: myid externalid --fixed-ip ..."""
+        # set external gateway for router: myid externalid --fixed-ip ...
         resource = 'router'
         cmd = router.SetGatewayRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['myid', 'externalid', '--fixed-ip', 'subnet_id=mysubnet']
@@ -313,14 +384,10 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_remove_gateway(self):
-        """Remove external gateway from router: externalid."""
+        # Remove external gateway from router: externalid.
         resource = 'router'
         cmd = router.RemoveGatewayRouter(test_cli20.MyApp(sys.stdout), None)
         args = ['externalid']
         self._test_update_resource(resource, cmd, 'externalid',
                                    args, {"external_gateway_info": {}}
                                    )
-
-
-class CLITestV20RouterXML(CLITestV20RouterJSON):
-    format = 'xml'

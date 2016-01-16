@@ -16,8 +16,8 @@
 #    under the License.
 #
 
+from neutronclient._i18n import _
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 
@@ -82,6 +82,7 @@ class CreatePool(neutronV20.CreateCommand):
             '--protocol',
             required=True,
             choices=['HTTP', 'HTTPS', 'TCP'],
+            type=utils.convert_to_uppercase,
             help=_('Protocol for balancing.'))
 
     def args2body(self, parsed_args):
@@ -90,18 +91,14 @@ class CreatePool(neutronV20.CreateCommand):
                 parsed_args.session_persistence)
         _listener_id = neutronV20.find_resourceid_by_name_or_id(
             self.get_client(), 'listener', parsed_args.listener)
-        body = {
-            self.resource: {
-                'admin_state_up': parsed_args.admin_state,
+        body = {'admin_state_up': parsed_args.admin_state,
                 'protocol': parsed_args.protocol,
                 'lb_algorithm': parsed_args.lb_algorithm,
-                'listener_id': _listener_id,
-            },
-        }
-        neutronV20.update_dict(parsed_args, body[self.resource],
+                'listener_id': _listener_id}
+        neutronV20.update_dict(parsed_args, body,
                                ['description', 'name',
                                 'session_persistence', 'tenant_id'])
-        return body
+        return {self.resource: body}
 
 
 class UpdatePool(neutronV20.UpdateCommand):

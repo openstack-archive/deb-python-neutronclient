@@ -54,8 +54,24 @@ class CLITestV20Agent(test_cli20.CLITestV20Base):
         self.assertIn("alive", ag.keys())
         self.assertIn(smile, ag.values())
 
+    def test_list_agents_zone_field(self):
+        contents = {'agents': [{'availability_zone': 'myzone'}]}
+        args = ['-f', 'json']
+        resources = "agents"
+
+        cmd = agent.ListAgent(test_cli20.MyApp(sys.stdout), None)
+        self._test_list_columns(cmd, resources, contents, args)
+        _str = self.fake_stdout.make_string()
+
+        returned_agents = jsonutils.loads(_str)
+        self.assertEqual(1, len(returned_agents))
+        ag = returned_agents[0]
+        self.assertEqual(1, len(ag))
+        self.assertIn("availability_zone", ag.keys())
+        self.assertIn('myzone', ag.values())
+
     def test_update_agent(self):
-        """agent-update myid --admin-state-down --description mydescr."""
+        # agent-update myid --admin-state-down --description mydescr.
         resource = 'agent'
         cmd = agent.UpdateAgent(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(
@@ -65,7 +81,7 @@ class CLITestV20Agent(test_cli20.CLITestV20Base):
         )
 
     def test_show_agent(self):
-        """Show agent: --field id --field binary myid."""
+        # Show agent: --field id --field binary myid.
         resource = 'agent'
         cmd = agent.ShowAgent(test_cli20.MyApp(sys.stdout), None)
         args = ['--field', 'id', '--field', 'binary', self.test_id]
@@ -73,7 +89,7 @@ class CLITestV20Agent(test_cli20.CLITestV20Base):
                                  args, ['id', 'binary'])
 
     def test_delete_agent(self):
-        """Delete agent: myid."""
+        # Delete agent: myid.
         resource = 'agent'
         cmd = agent.DeleteAgent(test_cli20.MyApp(sys.stdout), None)
         myid = 'myid'

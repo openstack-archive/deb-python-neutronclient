@@ -27,8 +27,11 @@ from neutronclient.tests.unit import test_cli20
 
 
 class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
+
+    non_admin_status_resources = ['security_group', 'security_group_rule']
+
     def test_create_security_group(self):
-        """Create security group: webservers."""
+        # Create security group: webservers.
         resource = 'security_group'
         cmd = securitygroup.CreateSecurityGroup(
             test_cli20.MyApp(sys.stdout), None)
@@ -41,7 +44,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_security_group_tenant(self):
-        """Create security group: webservers."""
+        # Create security group: webservers.
         resource = 'security_group'
         cmd = securitygroup.CreateSecurityGroup(
             test_cli20.MyApp(sys.stdout), None)
@@ -56,7 +59,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                                    tenant_id='tenant_id')
 
     def test_create_security_group_with_description(self):
-        """Create security group: webservers."""
+        # Create security group: webservers.
         resource = 'security_group'
         cmd = securitygroup.CreateSecurityGroup(
             test_cli20.MyApp(sys.stdout), None)
@@ -112,7 +115,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                                  args, ['id', 'name'])
 
     def test_delete_security_group(self):
-        """Delete security group: myid."""
+        # Delete security group: myid.
         resource = 'security_group'
         cmd = securitygroup.DeleteSecurityGroup(
             test_cli20.MyApp(sys.stdout), None)
@@ -121,7 +124,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
         self._test_delete_resource(resource, cmd, myid, args)
 
     def test_update_security_group(self):
-        """Update security group: myid --name myname --description desc."""
+        # Update security group: myid --name myname --description desc.
         resource = 'security_group'
         cmd = securitygroup.UpdateSecurityGroup(
             test_cli20.MyApp(sys.stdout), None)
@@ -144,7 +147,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_create_security_group_rule_full(self):
-        """Create security group rule."""
+        # Create security group rule.
         resource = 'security_group_rule'
         cmd = securitygroup.CreateSecurityGroupRule(
             test_cli20.MyApp(sys.stdout), None)
@@ -171,8 +174,35 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
         self._test_create_resource(resource, cmd, None, myid, args,
                                    position_names, position_values)
 
+    def test_create_security_group_rule_with_integer_protocol_value(self):
+        resource = 'security_group_rule'
+        cmd = securitygroup.CreateSecurityGroupRule(
+            test_cli20.MyApp(sys.stdout), None)
+        myid = 'myid'
+        direction = 'ingress'
+        ethertype = 'IPv4'
+        protocol = '2'
+        port_range_min = '22'
+        port_range_max = '22'
+        remote_ip_prefix = '10.0.0.0/24'
+        security_group_id = '1'
+        remote_group_id = '1'
+        args = ['--remote_ip_prefix', remote_ip_prefix, '--direction',
+                direction, '--ethertype', ethertype, '--protocol', protocol,
+                '--port_range_min', port_range_min, '--port_range_max',
+                port_range_max, '--remote_group_id', remote_group_id,
+                security_group_id]
+        position_names = ['remote_ip_prefix', 'direction', 'ethertype',
+                          'protocol', 'port_range_min', 'port_range_max',
+                          'remote_group_id', 'security_group_id']
+        position_values = [remote_ip_prefix, direction, ethertype, protocol,
+                           port_range_min, port_range_max, remote_group_id,
+                           security_group_id]
+        self._test_create_resource(resource, cmd, None, myid, args,
+                                   position_names, position_values)
+
     def test_delete_security_group_rule(self):
-        """Delete security group rule: myid."""
+        # Delete security group rule: myid.
         resource = 'security_group_rule'
         cmd = securitygroup.DeleteSecurityGroupRule(
             test_cli20.MyApp(sys.stdout), None)
@@ -384,7 +414,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
         self.assertEqual(expected['cols'], result[0])
         # Check data
         _result = [x for x in result[1]]
-        self.assertEqual(len(_result), len(expected['data']))
+        self.assertEqual(len(expected['data']), len(_result))
         for res, exp in zip(_result, expected['data']):
             self.assertEqual(len(exp), len(res))
             self.assertEqual(exp, res)
@@ -489,7 +519,7 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                                    remote_ip_prefix='10.2.0.0/16')]
         expected = {
             'cols': ['id', 'security_group', 'direction', 'ethertype',
-                     'protocol/port', 'remote'],
+                     'port/protocol', 'remote'],
             'data': [
                 ('ruleid1', 'group1', 'ingress', 'IPv4', '22/tcp', 'any'),
                 ('ruleid2', 'group2', 'egress', 'IPv6', '80-81/udp', 'any'),
@@ -570,6 +600,14 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
         sg_rule = self._prepare_rule(protocol='icmp')
         self.assertEqual('icmp', securitygroup._get_protocol_port(sg_rule))
 
+    def test_get_ethertype_for_protocol_icmpv6(self):
+        self.assertEqual('IPv6',
+                         securitygroup.generate_default_ethertype('icmpv6'))
+
+    def test_get_ethertype_for_protocol_icmp(self):
+        self.assertEqual('IPv4',
+                         securitygroup.generate_default_ethertype('icmp'))
+
     def test__get_protocol_port_udp_code_type(self):
         sg_rule = self._prepare_rule(protocol='icmp',
                                      port_range_min=1, port_range_max=8)
@@ -598,7 +636,3 @@ class CLITestV20SecurityGroupsJSON(test_cli20.CLITestV20Base):
                          ]
         expected = '\n'.join(sorted(expected_data))
         self.assertEqual(expected, securitygroup._format_sg_rules(sg))
-
-
-class CLITestV20SecurityGroupsXML(CLITestV20SecurityGroupsJSON):
-    format = 'xml'

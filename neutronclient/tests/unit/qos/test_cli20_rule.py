@@ -22,6 +22,9 @@ from neutronclient.tests.unit import test_cli20
 
 
 class CLITestV20QoSRuleJSON(test_cli20.CLITestV20Base):
+
+    non_admin_status_resources = ['bandwidth_limit_rule']
+
     def setUp(self):
         super(CLITestV20QoSRuleJSON, self).setUp()
         self.res = 'bandwidth_limit_rule'
@@ -135,7 +138,7 @@ class CLITestV20QoSRuleJSON(test_cli20.CLITestV20Base):
                                  parent_id=policy_id)
 
     def test_list_qos_rule_types(self):
-        """qos_rule_types."""
+        # qos_rule_types.
         resources = 'rule_types'
         cmd_resources = 'qos_rule_types'
         response_contents = [{'type': 'bandwidth_limit'}]

@@ -14,8 +14,8 @@
 #    under the License.
 #
 
+from neutronclient._i18n import _
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
 from neutronclient.neutron.v2_0.vpn import utils as vpn_utils
 
@@ -77,25 +77,15 @@ class CreateIPsecPolicy(neutronv20.CreateCommand):
 
     def args2body(self, parsed_args):
 
-        body = {'ipsecpolicy': {
-            'auth_algorithm': parsed_args.auth_algorithm,
-            'encryption_algorithm': parsed_args.encryption_algorithm,
-            'encapsulation_mode': parsed_args.encapsulation_mode,
-            'transform_protocol': parsed_args.transform_protocol,
-            'pfs': parsed_args.pfs,
-        }, }
-        if parsed_args.name:
-            body['ipsecpolicy'].update({'name': parsed_args.name})
-        if parsed_args.description:
-            body['ipsecpolicy'].update(
-                {'description': parsed_args.description}
-            )
-        if parsed_args.tenant_id:
-            body['ipsecpolicy'].update({'tenant_id': parsed_args.tenant_id})
+        body = {}
+        neutronv20.update_dict(parsed_args, body,
+                               ['auth_algorithm', 'encryption_algorithm',
+                                'encapsulation_mode', 'transform_protocol',
+                                'pfs', 'name', 'description', 'tenant_id'])
         if parsed_args.lifetime:
             vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['ipsecpolicy'].update({'lifetime': parsed_args.lifetime})
-        return body
+            body['lifetime'] = parsed_args.lifetime
+        return {'ipsecpolicy': body}
 
 
 class UpdateIPsecPolicy(neutronv20.UpdateCommand):
@@ -112,12 +102,11 @@ class UpdateIPsecPolicy(neutronv20.UpdateCommand):
 
     def args2body(self, parsed_args):
 
-        body = {'ipsecpolicy': {
-        }, }
+        body = {}
         if parsed_args.lifetime:
             vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['ipsecpolicy'].update({'lifetime': parsed_args.lifetime})
-        return body
+            body['lifetime'] = parsed_args.lifetime
+        return {'ipsecpolicy': body}
 
 
 class DeleteIPsecPolicy(neutronv20.DeleteCommand):

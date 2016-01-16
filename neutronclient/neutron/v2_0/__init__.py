@@ -27,10 +27,10 @@ from cliff import show
 from oslo_serialization import jsonutils
 import six
 
+from neutronclient._i18n import _
 from neutronclient.common import command
 from neutronclient.common import exceptions
 from neutronclient.common import utils
-from neutronclient.i18n import _
 
 HEX_ELEM = '[0-9A-Fa-f]'
 UUID_PATTERN = '-'.join([HEX_ELEM + '{8}', HEX_ELEM + '{4}',
@@ -426,12 +426,12 @@ class NeutronCommand(command.OpenStackCommand):
         parser = super(NeutronCommand, self).get_parser(prog_name)
         parser.add_argument(
             '--request-format',
-            help=_('The XML or JSON request format.'),
+            help=_('DEPRECATED! Only JSON request format is supported.'),
             default='json',
-            choices=['json', 'xml', ], )
+            choices=['json', ], )
         parser.add_argument(
             '--request_format',
-            choices=['json', 'xml', ],
+            choices=['json', ],
             help=argparse.SUPPRESS)
 
         return parser
@@ -486,7 +486,6 @@ class CreateCommand(NeutronCommand, show.ShowOne):
         self.log.debug('get_data(%s)' % parsed_args)
         self.set_extra_attrs(parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         _extra_values = parse_args_to_dict(self.values_specs)
         _merge_args(self, parsed_args, _extra_values,
                     self.values_specs)
@@ -531,7 +530,6 @@ class UpdateCommand(NeutronCommand):
         self.log.debug('run(%s)', parsed_args)
         self.set_extra_attrs(parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         _extra_values = parse_args_to_dict(self.values_specs)
         _merge_args(self, parsed_args, _extra_values,
                     self.values_specs)
@@ -587,7 +585,6 @@ class DeleteCommand(NeutronCommand):
         self.log.debug('run(%s)', parsed_args)
         self.set_extra_attrs(parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         obj_deleter = getattr(neutron_client,
                               "delete_%s" % self.cmd_resource)
         if self.allow_names:
@@ -654,7 +651,6 @@ class ListCommand(NeutronCommand, lister.Lister):
     def retrieve_list(self, parsed_args):
         """Retrieve a list of resources from Neutron server."""
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         _extra_values = parse_args_to_dict(self.values_specs)
         _merge_args(self, parsed_args, _extra_values,
                     self.values_specs)
@@ -683,9 +679,9 @@ class ListCommand(NeutronCommand, lister.Lister):
     def extend_list(self, data, parsed_args):
         """Update a retrieved list.
 
-        This method provides a way to modify a original list returned from
+        This method provides a way to modify an original list returned from
         the neutron server. For example, you can add subnet cidr information
-        to a list network.
+        to a network list.
         """
         pass
 
@@ -742,7 +738,6 @@ class ShowCommand(NeutronCommand, show.ShowOne):
         self.log.debug('get_data(%s)', parsed_args)
         self.set_extra_attrs(parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
 
         params = {}
         if parsed_args.show_details:

@@ -14,7 +14,7 @@
 #    under the License.
 #
 
-from neutronclient.i18n import _
+from neutronclient._i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 
@@ -29,8 +29,8 @@ class ListAgent(neutronV20.ListCommand):
     """List agents."""
 
     resource = 'agent'
-    list_columns = ['id', 'agent_type', 'host', 'alive', 'admin_state_up',
-                    'binary']
+    list_columns = ['id', 'agent_type', 'host', 'availability_zone', 'alive',
+                    'admin_state_up', 'binary']
     _formatters = {'heartbeat_timestamp': _format_timestamp}
     sorting_support = True
 
@@ -72,9 +72,7 @@ class UpdateAgent(neutronV20.UpdateCommand):
             help=_('Description for the agent.'))
 
     def args2body(self, parsed_args):
-        body = {
-            self.resource: {
-                'admin_state_up': parsed_args.admin_state, }, }
-        neutronV20.update_dict(parsed_args, body[self.resource],
+        body = {'admin_state_up': parsed_args.admin_state}
+        neutronV20.update_dict(parsed_args, body,
                                ['description'])
-        return body
+        return {self.resource: body}

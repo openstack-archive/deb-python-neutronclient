@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from neutronclient.i18n import _
+from neutronclient._i18n import _
 
 """
 Neutron base exception handling.
@@ -219,7 +219,9 @@ class CommandError(NeutronCLIError):
 
 
 class UnsupportedVersion(NeutronCLIError):
-    """Indicates that the user is trying to use an unsupported version of
+    """Indicates usage of an unsupported API version
+
+    Indicates that the user is trying to use an unsupported version of
     the API.
     """
     pass

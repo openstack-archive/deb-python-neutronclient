@@ -21,35 +21,32 @@ Command-line interface to the Neutron APIs
 from __future__ import print_function
 
 import argparse
-import getpass
 import inspect
 import itertools
 import logging
 import os
 import sys
 
-from keystoneclient.auth.identity import v2 as v2_auth
-from keystoneclient.auth.identity import v3 as v3_auth
-from keystoneclient import discover
-from keystoneclient.openstack.common.apiclient import exceptions as ks_exc
-from keystoneclient import session
+from keystoneauth1 import session
+import os_client_config
 from oslo_utils import encodeutils
-import six.moves.urllib.parse as urlparse
 
 from cliff import app
 from cliff import commandmanager
 
+from neutronclient._i18n import _
 from neutronclient.common import clientmanager
 from neutronclient.common import command as openstack_command
 from neutronclient.common import exceptions as exc
 from neutronclient.common import extension as client_extension
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron.v2_0 import address_scope
 from neutronclient.neutron.v2_0 import agent
 from neutronclient.neutron.v2_0 import agentscheduler
-from neutronclient.neutron.v2_0 import credential
+from neutronclient.neutron.v2_0 import availability_zone
 from neutronclient.neutron.v2_0 import extension
+from neutronclient.neutron.v2_0.flavor import flavor
+from neutronclient.neutron.v2_0.flavor import flavor_profile
 from neutronclient.neutron.v2_0 import floatingip
 from neutronclient.neutron.v2_0.fw import firewall
 from neutronclient.neutron.v2_0.fw import firewallpolicy
@@ -64,12 +61,9 @@ from neutronclient.neutron.v2_0.lb.v2 import member as lbaas_member
 from neutronclient.neutron.v2_0.lb.v2 import pool as lbaas_pool
 from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import metering
-from neutronclient.neutron.v2_0 import netpartition
 from neutronclient.neutron.v2_0 import network
-from neutronclient.neutron.v2_0 import networkprofile
 from neutronclient.neutron.v2_0.nsx import networkgateway
 from neutronclient.neutron.v2_0.nsx import qos_queue
-from neutronclient.neutron.v2_0 import policyprofile
 from neutronclient.neutron.v2_0 import port
 from neutronclient.neutron.v2_0.qos import bandwidth_limit_rule
 from neutronclient.neutron.v2_0.qos import policy as qos_policy
@@ -81,6 +75,7 @@ from neutronclient.neutron.v2_0 import securitygroup
 from neutronclient.neutron.v2_0 import servicetype
 from neutronclient.neutron.v2_0 import subnet
 from neutronclient.neutron.v2_0 import subnetpool
+from neutronclient.neutron.v2_0.vpn import endpoint_group
 from neutronclient.neutron.v2_0.vpn import ikepolicy
 from neutronclient.neutron.v2_0.vpn import ipsec_site_connection
 from neutronclient.neutron.v2_0.vpn import ipsecpolicy
@@ -208,6 +203,7 @@ COMMAND_V2 = {
     'lbaas-loadbalancer-create': lbaas_loadbalancer.CreateLoadBalancer,
     'lbaas-loadbalancer-update': lbaas_loadbalancer.UpdateLoadBalancer,
     'lbaas-loadbalancer-delete': lbaas_loadbalancer.DeleteLoadBalancer,
+    'lbaas-loadbalancer-stats': lbaas_loadbalancer.RetrieveLoadBalancerStats,
     'lbaas-listener-list': lbaas_listener.ListListener,
     'lbaas-listener-show': lbaas_listener.ShowListener,
     'lbaas-listener-create': lbaas_listener.CreateListener,
@@ -305,18 +301,6 @@ COMMAND_V2 = {
     'firewall-create': firewall.CreateFirewall,
     'firewall-update': firewall.UpdateFirewall,
     'firewall-delete': firewall.DeleteFirewall,
-    'cisco-credential-list': credential.ListCredential,
-    'cisco-credential-show': credential.ShowCredential,
-    'cisco-credential-create': credential.CreateCredential,
-    'cisco-credential-delete': credential.DeleteCredential,
-    'cisco-network-profile-list': networkprofile.ListNetworkProfile,
-    'cisco-network-profile-show': networkprofile.ShowNetworkProfile,
-    'cisco-network-profile-create': networkprofile.CreateNetworkProfile,
-    'cisco-network-profile-delete': networkprofile.DeleteNetworkProfile,
-    'cisco-network-profile-update': networkprofile.UpdateNetworkProfile,
-    'cisco-policy-profile-list': policyprofile.ListPolicyProfile,
-    'cisco-policy-profile-show': policyprofile.ShowPolicyProfile,
-    'cisco-policy-profile-update': policyprofile.UpdatePolicyProfile,
     'ipsec-site-connection-list': (
         ipsec_site_connection.ListIPsecSiteConnection
     ),
@@ -332,6 +316,11 @@ COMMAND_V2 = {
     'ipsec-site-connection-delete': (
         ipsec_site_connection.DeleteIPsecSiteConnection
     ),
+    'vpn-endpoint-group-list': endpoint_group.ListEndpointGroup,
+    'vpn-endpoint-group-show': endpoint_group.ShowEndpointGroup,
+    'vpn-endpoint-group-create': endpoint_group.CreateEndpointGroup,
+    'vpn-endpoint-group-update': endpoint_group.UpdateEndpointGroup,
+    'vpn-endpoint-group-delete': endpoint_group.DeleteEndpointGroup,
     'vpn-service-list': vpnservice.ListVPNService,
     'vpn-service-show': vpnservice.ShowVPNService,
     'vpn-service-create': vpnservice.CreateVPNService,
@@ -355,10 +344,6 @@ COMMAND_V2 = {
     'meter-label-rule-list': metering.ListMeteringLabelRule,
     'meter-label-rule-show': metering.ShowMeteringLabelRule,
     'meter-label-rule-delete': metering.DeleteMeteringLabelRule,
-    'nuage-netpartition-list': netpartition.ListNetPartition,
-    'nuage-netpartition-show': netpartition.ShowNetPartition,
-    'nuage-netpartition-create': netpartition.CreateNetPartition,
-    'nuage-netpartition-delete': netpartition.DeleteNetPartition,
     'rbac-create': rbac.CreateRBACPolicy,
     'rbac-update': rbac.UpdateRBACPolicy,
     'rbac-list': rbac.ListRBACPolicy,
@@ -390,13 +375,28 @@ COMMAND_V2 = {
         bandwidth_limit_rule.DeleteQoSBandwidthLimitRule
     ),
     'qos-available-rule-types': qos_rule.ListQoSRuleTypes,
+    'flavor-list': flavor.ListFlavor,
+    'flavor-show': flavor.ShowFlavor,
+    'flavor-create': flavor.CreateFlavor,
+    'flavor-delete': flavor.DeleteFlavor,
+    'flavor-update': flavor.UpdateFlavor,
+    'flavor-associate': flavor.AssociateFlavor,
+    'flavor-disassociate': flavor.DisassociateFlavor,
+    'flavor-profile-list': flavor_profile.ListFlavorProfile,
+    'flavor-profile-show': flavor_profile.ShowFlavorProfile,
+    'flavor-profile-create': flavor_profile.CreateFlavorProfile,
+    'flavor-profile-delete': flavor_profile.DeleteFlavorProfile,
+    'flavor-profile-update': flavor_profile.UpdateFlavorProfile,
+    'availability-zone-list': availability_zone.ListAvailabilityZone,
 }
 
 COMMANDS = {'2.0': COMMAND_V2}
 
 
 class HelpAction(argparse.Action):
-    """Provide a custom action so the -h and --help options
+    """Print help message including sub-commands
+
+    Provide a custom action so the -h and --help options
     to the main app will print a list of the commands.
 
     The commands are determined by checking the CommandManager
@@ -493,7 +493,7 @@ class NeutronShell(app.App):
             default=0,
             help=_("How many times the request to the Neutron server should "
                    "be retried if it fails."))
-        # FIXME(bklei): this method should come from python-keystoneclient
+        # FIXME(bklei): this method should come from keystoneauth1
         self._append_global_identity_args(parser)
 
         return parser
@@ -501,9 +501,9 @@ class NeutronShell(app.App):
     def _append_global_identity_args(self, parser):
         # FIXME(bklei): these are global identity (Keystone) arguments which
         # should be consistent and shared by all service clients. Therefore,
-        # they should be provided by python-keystoneclient. We will need to
+        # they should be provided by keystoneauth1. We will need to
         # refactor this code once this functionality is available in
-        # python-keystoneclient.
+        # keystoneauth1.
         #
         # Note: At that time we'll need to decide if we can just abandon
         #       the deprecated args (--service-type and --endpoint-type).
@@ -515,8 +515,8 @@ class NeutronShell(app.App):
 
         parser.add_argument(
             '--os-endpoint-type', metavar='<os-endpoint-type>',
-            default=env('OS_ENDPOINT_TYPE', default='publicURL'),
-            help=_('Defaults to env[OS_ENDPOINT_TYPE] or publicURL.'))
+            default=env('OS_ENDPOINT_TYPE', default='public'),
+            help=_('Defaults to env[OS_ENDPOINT_TYPE] or public.'))
 
         # FIXME(bklei): --service-type is deprecated but kept in for
         # backward compatibility.
@@ -529,7 +529,7 @@ class NeutronShell(app.App):
         # backward compatibility.
         parser.add_argument(
             '--endpoint-type', metavar='<endpoint-type>',
-            default=env('OS_ENDPOINT_TYPE', default='publicURL'),
+            default=env('OS_ENDPOINT_TYPE', default='public'),
             help=_('DEPRECATED! Use --os-endpoint-type.'))
 
         parser.add_argument(
@@ -540,6 +540,11 @@ class NeutronShell(app.App):
         parser.add_argument(
             '--os_auth_strategy',
             help=argparse.SUPPRESS)
+
+        parser.add_argument(
+            '--os-cloud', metavar='<cloud>',
+            default=env('OS_CLOUD', default=None),
+            help=_('Defaults to env[OS_CLOUD].'))
 
         parser.add_argument(
             '--os-auth-url', metavar='<auth-url>',
@@ -812,6 +817,10 @@ class NeutronShell(app.App):
                          )
             cmd_parser = cmd.get_parser(full_name)
             return run_command(cmd, cmd_parser, sub_argv)
+        except SystemExit:
+            print(_("Try 'neutron help %s' for more information.") %
+                  cmd_name, file=sys.stderr)
+            raise
         except Exception as e:
             if self.options.verbose_level >= self.DEBUG_LEVEL:
                 self.log.exception("%s", e)
@@ -820,107 +829,33 @@ class NeutronShell(app.App):
         return 1
 
     def authenticate_user(self):
-        """Make sure the user has provided all of the authentication
+        """Confirm user authentication
+
+        Make sure the user has provided all of the authentication
         info we need.
         """
-        if self.options.os_auth_strategy == 'keystone':
-            if self.options.os_token or self.options.os_url:
-                # Token flow auth takes priority
-                if not self.options.os_token:
-                    raise exc.CommandError(
-                        _("You must provide a token via"
-                          " either --os-token or env[OS_TOKEN]"
-                          " when providing a service URL"))
+        cloud_config = os_client_config.OpenStackConfig().get_one_cloud(
+            cloud=self.options.os_cloud, argparse=self.options,
+            network_api_version=self.api_version)
+        verify, cert = cloud_config.get_requests_verify_args()
+        auth = cloud_config.get_auth()
 
-                if not self.options.os_url:
-                    raise exc.CommandError(
-                        _("You must provide a service URL via"
-                          " either --os-url or env[OS_URL]"
-                          " when providing a token"))
+        auth_session = session.Session(
+            auth=auth, verify=verify, cert=cert,
+            timeout=self.options.http_timeout)
 
-            else:
-                # Validate password flow auth
-                project_info = (self.options.os_tenant_name or
-                                self.options.os_tenant_id or
-                                (self.options.os_project_name and
-                                    (self.options.os_project_domain_name or
-                                     self.options.os_project_domain_id)) or
-                                self.options.os_project_id)
-
-                if (not self.options.os_username
-                        and not self.options.os_user_id):
-                    raise exc.CommandError(
-                        _("You must provide a username or user ID via"
-                          "  --os-username, env[OS_USERNAME] or"
-                          "  --os-user-id, env[OS_USER_ID]"))
-
-                if not self.options.os_password:
-                    # No password, If we've got a tty, try prompting for it
-                    if hasattr(sys.stdin, 'isatty') and sys.stdin.isatty():
-                        # Check for Ctl-D
-                        try:
-                            self.options.os_password = getpass.getpass(
-                                'OS Password: ')
-                        except EOFError:
-                            pass
-                    # No password because we didn't have a tty or the
-                    # user Ctl-D when prompted.
-                    if not self.options.os_password:
-                        raise exc.CommandError(
-                            _("You must provide a password via"
-                              " either --os-password or env[OS_PASSWORD]"))
-
-                if (not project_info):
-                    # tenent is deprecated in Keystone v3. Use the latest
-                    # terminology instead.
-                    raise exc.CommandError(
-                        _("You must provide a project_id or project_name ("
-                          "with project_domain_name or project_domain_id) "
-                          "via "
-                          "  --os-project-id (env[OS_PROJECT_ID])"
-                          "  --os-project-name (env[OS_PROJECT_NAME]),"
-                          "  --os-project-domain-id "
-                          "(env[OS_PROJECT_DOMAIN_ID])"
-                          "  --os-project-domain-name "
-                          "(env[OS_PROJECT_DOMAIN_NAME])"))
-
-                if not self.options.os_auth_url:
-                    raise exc.CommandError(
-                        _("You must provide an auth url via"
-                          " either --os-auth-url or via env[OS_AUTH_URL]"))
-            auth_session = self._get_keystone_session()
-            auth = auth_session.auth
-        else:   # not keystone
-            if not self.options.os_url:
-                raise exc.CommandError(
-                    _("You must provide a service URL via"
-                      " either --os-url or env[OS_URL]"))
-            auth_session = None
-            auth = None
-
+        interface = self.options.os_endpoint_type or self.endpoint_type
+        if interface.endswith('URL'):
+            interface = interface[:-3]
         self.client_manager = clientmanager.ClientManager(
-            token=self.options.os_token,
-            url=self.options.os_url,
-            auth_url=self.options.os_auth_url,
-            tenant_name=self.options.os_tenant_name,
-            tenant_id=self.options.os_tenant_id,
-            username=self.options.os_username,
-            user_id=self.options.os_user_id,
-            password=self.options.os_password,
-            region_name=self.options.os_region_name,
-            api_version=self.api_version,
-            auth_strategy=self.options.os_auth_strategy,
-            # FIXME (bklei) honor deprecated service_type and
-            # endpoint type until they are removed
-            service_type=self.options.os_service_type or
-            self.options.service_type,
-            endpoint_type=self.options.os_endpoint_type or self.endpoint_type,
-            insecure=self.options.insecure,
-            ca_cert=self.options.os_cacert,
-            timeout=self.options.http_timeout,
             retries=self.options.retries,
             raise_errors=False,
             session=auth_session,
+            region_name=cloud_config.get_region_name(),
+            api_version=cloud_config.get_api_version('network'),
+            service_type=cloud_config.get_service_type('network'),
+            service_name=cloud_config.get_service_name('network'),
+            endpoint_type=interface,
             auth=auth,
             log_credentials=True)
         return
@@ -974,89 +909,6 @@ class NeutronShell(app.App):
         console.setFormatter(formatter)
         root_logger.addHandler(console)
         return
-
-    def get_v2_auth(self, v2_auth_url):
-        return v2_auth.Password(
-            v2_auth_url,
-            username=self.options.os_username,
-            password=self.options.os_password,
-            tenant_id=self.options.os_tenant_id,
-            tenant_name=self.options.os_tenant_name)
-
-    def get_v3_auth(self, v3_auth_url):
-        project_id = self.options.os_project_id or self.options.os_tenant_id
-        project_name = (self.options.os_project_name or
-                        self.options.os_tenant_name)
-
-        return v3_auth.Password(
-            v3_auth_url,
-            username=self.options.os_username,
-            password=self.options.os_password,
-            user_id=self.options.os_user_id,
-            user_domain_name=self.options.os_user_domain_name,
-            user_domain_id=self.options.os_user_domain_id,
-            project_id=project_id,
-            project_name=project_name,
-            project_domain_name=self.options.os_project_domain_name,
-            project_domain_id=self.options.os_project_domain_id
-        )
-
-    def _discover_auth_versions(self, session, auth_url):
-        # discover the API versions the server is supporting base on the
-        # given URL
-        try:
-            ks_discover = discover.Discover(session=session, auth_url=auth_url)
-            return (ks_discover.url_for('2.0'), ks_discover.url_for('3.0'))
-        except ks_exc.ClientException:
-            # Identity service may not support discover API version.
-            # Lets try to figure out the API version from the original URL.
-            url_parts = urlparse.urlparse(auth_url)
-            (scheme, netloc, path, params, query, fragment) = url_parts
-            path = path.lower()
-            if path.startswith('/v3'):
-                return (None, auth_url)
-            elif path.startswith('/v2'):
-                return (auth_url, None)
-            else:
-                # not enough information to determine the auth version
-                msg = _('Unable to determine the Keystone version '
-                        'to authenticate with using the given '
-                        'auth_url. Identity service may not support API '
-                        'version discovery. Please provide a versioned '
-                        'auth_url instead.')
-                raise exc.CommandError(msg)
-
-    def _get_keystone_session(self):
-        # first create a Keystone session
-        cacert = self.options.os_cacert or None
-        cert = self.options.os_cert or None
-        key = self.options.os_key or None
-        insecure = self.options.insecure or False
-        ks_session = session.Session.construct(dict(cacert=cacert,
-                                                    cert=cert,
-                                                    key=key,
-                                                    insecure=insecure))
-        # discover the supported keystone versions using the given url
-        (v2_auth_url, v3_auth_url) = self._discover_auth_versions(
-            session=ks_session,
-            auth_url=self.options.os_auth_url)
-
-        # Determine which authentication plugin to use. First inspect the
-        # auth_url to see the supported version. If both v3 and v2 are
-        # supported, then use the highest version if possible.
-        user_domain_name = self.options.os_user_domain_name or None
-        user_domain_id = self.options.os_user_domain_id or None
-        project_domain_name = self.options.os_project_domain_name or None
-        project_domain_id = self.options.os_project_domain_id or None
-        domain_info = (user_domain_name or user_domain_id or
-                       project_domain_name or project_domain_id)
-
-        if (v2_auth_url and not domain_info) or not v3_auth_url:
-            ks_session.auth = self.get_v2_auth(v2_auth_url)
-        else:
-            ks_session.auth = self.get_v3_auth(v3_auth_url)
-
-        return ks_session
 
 
 def main(argv=sys.argv[1:]):

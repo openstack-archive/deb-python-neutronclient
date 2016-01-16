@@ -26,8 +26,8 @@ from oslo_utils import encodeutils
 from oslo_utils import importutils
 import six
 
+from neutronclient._i18n import _
 from neutronclient.common import exceptions
-from neutronclient.i18n import _
 
 
 def env(*vars, **kwargs):
@@ -40,6 +40,10 @@ def env(*vars, **kwargs):
         if value:
             return value
     return kwargs.get('default', '')
+
+
+def convert_to_uppercase(string):
+    return string.upper()
 
 
 def get_client_class(api_name, version, version_map):

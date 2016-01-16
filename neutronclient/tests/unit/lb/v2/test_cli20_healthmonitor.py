@@ -23,7 +23,7 @@ from neutronclient.tests.unit import test_cli20
 class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
 
     def test_create_healthmonitor_with_mandatory_params(self):
-        """lbaas-healthmonitor-create with mandatory params only."""
+        # lbaas-healthmonitor-create with mandatory params only.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.CreateHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -43,7 +43,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                    cmd_resource=cmd_resource)
 
     def test_create_healthmonitor_with_all_params(self):
-        """lbaas-healthmonitor-create with all params set."""
+        # lbaas-healthmonitor-create with all params set.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.CreateHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -57,21 +57,23 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
         expected_codes = '201'
         url_path = '/somepath'
         pool = 'pool1'
+        name = 'healthmonitor1'
         args = ['--admin-state-down', '--http-method', http_method,
                 '--expected-codes', expected_codes, '--url-path', url_path,
                 '--type', type, '--max-retries', max_retries,
-                '--delay', delay, '--timeout', timeout, '--pool', pool]
+                '--delay', delay, '--timeout', timeout, '--pool', pool,
+                '--name', name]
         position_names = ['admin_state_up', 'http_method', 'expected_codes',
                           'url_path', 'type', 'max_retries', 'delay',
-                          'timeout', 'pool_id']
+                          'timeout', 'pool_id', 'name']
         position_values = [False, http_method, expected_codes, url_path,
-                           type, max_retries, delay, timeout, pool]
+                           type, max_retries, delay, timeout, pool, name]
         self._test_create_resource(resource, cmd, '', my_id, args,
                                    position_names, position_values,
                                    cmd_resource=cmd_resource)
 
     def test_list_healthmonitors(self):
-        """lbaas-healthmonitor-list."""
+        # lbaas-healthmonitor-list.
         resources = 'healthmonitors'
         cmd_resources = 'lbaas_healthmonitors'
         cmd = healthmonitor.ListHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -80,7 +82,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_list_healthmonitors_pagination(self):
-        """lbaas-healthmonitor-list with pagination."""
+        # lbaas-healthmonitor-list with pagination.
         resources = 'healthmonitors'
         cmd_resources = 'lbaas_healthmonitors'
         cmd = healthmonitor.ListHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -89,7 +91,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                                   cmd_resources=cmd_resources)
 
     def test_list_healthmonitors_sort(self):
-        """lbaas-healthmonitor-list --sort-key id --sort-key asc."""
+        # lbaas-healthmonitor-list --sort-key id --sort-key asc.
         resources = 'healthmonitors'
         cmd_resources = 'lbaas_healthmonitors'
         cmd = healthmonitor.ListHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -98,7 +100,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_list_healthmonitors_limit(self):
-        """lbaas-healthmonitor-list -P."""
+        # lbaas-healthmonitor-list -P.
         resources = 'healthmonitors'
         cmd_resources = 'lbaas_healthmonitors'
         cmd = healthmonitor.ListHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -107,7 +109,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_show_healthmonitor_id(self):
-        """lbaas-healthmonitor-show test_id."""
+        # lbaas-healthmonitor-show test_id.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.ShowHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -117,7 +119,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                  cmd_resource=cmd_resource)
 
     def test_show_healthmonitor_id_name(self):
-        """lbaas-healthmonitor-show."""
+        # lbaas-healthmonitor-show.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.ShowHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -128,7 +130,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                  cmd_resource=cmd_resource)
 
     def test_update_healthmonitor(self):
-        """lbaas-healthmonitor-update myid --name newname."""
+        # lbaas-healthmonitor-update myid --name newname.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.UpdateHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -139,7 +141,7 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
                                    cmd_resource=cmd_resource)
 
     def test_delete_healthmonitor(self):
-        """lbaas-healthmonitor-delete my-id."""
+        # lbaas-healthmonitor-delete my-id.
         resource = 'healthmonitor'
         cmd_resource = 'lbaas_healthmonitor'
         cmd = healthmonitor.DeleteHealthMonitor(test_cli20.MyApp(sys.stdout),
@@ -148,7 +150,3 @@ class CLITestV20LbHealthMonitorJSON(test_cli20.CLITestV20Base):
         args = [my_id]
         self._test_delete_resource(resource, cmd, my_id, args,
                                    cmd_resource=cmd_resource)
-
-
-class CLITestV20LbHealthMonitorXML(CLITestV20LbHealthMonitorJSON):
-    format = 'xml'

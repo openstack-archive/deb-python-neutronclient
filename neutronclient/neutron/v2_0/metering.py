@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from neutronclient.i18n import _
+from neutronclient._i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
 
 
@@ -50,18 +50,10 @@ class CreateMeteringLabel(neutronv20.CreateCommand):
             help=_('Set the label as shared.'))
 
     def args2body(self, parsed_args):
-        body = {'metering_label': {
-            'name': parsed_args.name}, }
-
-        if parsed_args.tenant_id:
-            body['metering_label'].update({'tenant_id': parsed_args.tenant_id})
-        if parsed_args.description:
-            body['metering_label'].update(
-                {'description': parsed_args.description})
-        if parsed_args.shared:
-            body['metering_label'].update(
-                {'shared': True})
-        return body
+        body = {'name': parsed_args.name}
+        neutronv20.update_dict(parsed_args, body,
+                               ['tenant_id', 'description', 'shared'])
+        return {'metering_label': body}
 
 
 class DeleteMeteringLabel(neutronv20.DeleteCommand):
@@ -109,22 +101,14 @@ class CreateMeteringLabelRule(neutronv20.CreateCommand):
 
     def args2body(self, parsed_args):
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         label_id = neutronv20.find_resourceid_by_name_or_id(
             neutron_client, 'metering_label', parsed_args.label_id)
 
-        body = {'metering_label_rule': {
-            'metering_label_id': label_id,
-            'remote_ip_prefix': parsed_args.remote_ip_prefix
-        }}
-
-        if parsed_args.direction:
-            body['metering_label_rule'].update(
-                {'direction': parsed_args.direction})
-        if parsed_args.excluded:
-            body['metering_label_rule'].update(
-                {'excluded': True})
-        return body
+        body = {'metering_label_id': label_id,
+                'remote_ip_prefix': parsed_args.remote_ip_prefix}
+        neutronv20.update_dict(parsed_args, body,
+                               ['direction', 'excluded'])
+        return {'metering_label_rule': body}
 
 
 class DeleteMeteringLabelRule(neutronv20.DeleteCommand):

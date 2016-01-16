@@ -16,6 +16,8 @@
 
 import sys
 
+from mox3 import mox
+
 from neutronclient.neutron.v2_0.lb.v2 import loadbalancer as lb
 from neutronclient.tests.unit import test_cli20
 
@@ -23,7 +25,7 @@ from neutronclient.tests.unit import test_cli20
 class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
 
     def test_create_loadbalancer_with_mandatory_params(self):
-        """lbaas-loadbalancer-create with mandatory params only."""
+        # lbaas-loadbalancer-create with mandatory params only.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.CreateLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -38,25 +40,26 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                    cmd_resource=cmd_resource)
 
     def test_create_loadbalancer_with_all_params(self):
-        """lbaas-loadbalancer-create with all params set."""
+        # lbaas-loadbalancer-create with all params set.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.CreateLoadBalancer(test_cli20.MyApp(sys.stdout), None)
         name = 'lbaas-loadbalancer-name'
         description = 'lbaas-loadbalancer-desc'
+        flavor_id = 'lbaas-loadbalancer-flavor'
         vip_subnet_id = 'vip-subnet'
         my_id = 'my-id'
         args = ['--admin-state-down', '--description', description,
-                '--name', name, vip_subnet_id]
+                '--name', name, '--flavor', flavor_id, vip_subnet_id]
         position_names = ['admin_state_up', 'description', 'name',
-                          'vip_subnet_id']
-        position_values = [False, description, name, vip_subnet_id]
+                          'flavor_id', 'vip_subnet_id']
+        position_values = [False, description, name, flavor_id, vip_subnet_id]
         self._test_create_resource(resource, cmd, name, my_id, args,
                                    position_names, position_values,
                                    cmd_resource=cmd_resource)
 
     def test_list_loadbalancers(self):
-        """lbaas-loadbalancer-list."""
+        # lbaas-loadbalancer-list.
         resources = 'loadbalancers'
         cmd_resources = 'lbaas_loadbalancers'
         cmd = lb.ListLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -64,7 +67,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_list_loadbalancers_pagination(self):
-        """lbaas-loadbalancer-list with pagination."""
+        # lbaas-loadbalancer-list with pagination.
         resources = 'loadbalancers'
         cmd_resources = 'lbaas_loadbalancers'
         cmd = lb.ListLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -72,9 +75,8 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                                   cmd_resources=cmd_resources)
 
     def test_list_loadbalancers_sort(self):
-        """lbaas-loadbalancer-list --sort-key name --sort-key id
-        --sort-key asc --sort-key desc
-        """
+        # lbaas-loadbalancer-list --sort-key name --sort-key id --sort-key asc
+        # --sort-key desc
         resources = 'loadbalancers'
         cmd_resources = 'lbaas_loadbalancers'
         cmd = lb.ListLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -84,7 +86,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_list_loadbalancers_limit(self):
-        """lbaas-loadbalancer-list -P."""
+        # lbaas-loadbalancer-list -P.
         resources = 'loadbalancers'
         cmd_resources = 'lbaas_loadbalancers'
         cmd = lb.ListLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -92,7 +94,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                   cmd_resources=cmd_resources)
 
     def test_show_loadbalancer_id(self):
-        """lbaas-loadbalancer-loadbalancer-show test_id."""
+        # lbaas-loadbalancer-loadbalancer-show test_id.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.ShowLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -101,7 +103,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                  cmd_resource=cmd_resource)
 
     def test_show_loadbalancer_id_name(self):
-        """lbaas-loadbalancer-loadbalancer-show."""
+        # lbaas-loadbalancer-loadbalancer-show.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.ShowLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -111,7 +113,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                  cmd_resource=cmd_resource)
 
     def test_update_loadbalancer(self):
-        """lbaas-loadbalancer-loadbalancer-update myid --name newname."""
+        # lbaas-loadbalancer-loadbalancer-update myid --name newname.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.UpdateLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -121,7 +123,7 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
                                    cmd_resource=cmd_resource)
 
     def test_delete_loadbalancer(self):
-        """lbaas-loadbalancer-loadbalancer-delete my-id."""
+        # lbaas-loadbalancer-loadbalancer-delete my-id.
         resource = 'loadbalancer'
         cmd_resource = 'lbaas_loadbalancer'
         cmd = lb.DeleteLoadBalancer(test_cli20.MyApp(sys.stdout), None)
@@ -130,6 +132,37 @@ class CLITestV20LbLoadBalancerJSON(test_cli20.CLITestV20Base):
         self._test_delete_resource(resource, cmd, my_id, args,
                                    cmd_resource=cmd_resource)
 
+    def test_retrieve_loadbalancer_stats(self):
+        # lbaas-loadbalancer-stats test_id.
+        resource = 'loadbalancer'
+        cmd = lb.RetrieveLoadBalancerStats(test_cli20.MyApp(sys.stdout), None)
+        my_id = self.test_id
+        fields = ['bytes_in', 'bytes_out']
+        args = ['--fields', 'bytes_in', '--fields', 'bytes_out', my_id]
 
-class CLITestV20LbLoadBalancerXML(CLITestV20LbLoadBalancerJSON):
-    format = 'xml'
+        self.mox.StubOutWithMock(cmd, "get_client")
+        self.mox.StubOutWithMock(self.client.httpclient, "request")
+        cmd.get_client().MultipleTimes().AndReturn(self.client)
+        query = "&".join(["fields=%s" % field for field in fields])
+        expected_res = {'stats': {'bytes_in': '1234', 'bytes_out': '4321'}}
+        resstr = self.client.serialize(expected_res)
+        path = getattr(self.client, "lbaas_loadbalancer_path_stats")
+        return_tup = (test_cli20.MyResp(200), resstr)
+        self.client.httpclient.request(
+            test_cli20.end_url(path % my_id, query), 'GET',
+            body=None,
+            headers=mox.ContainsKeyValue(
+                'X-Auth-Token', test_cli20.TOKEN)).AndReturn(return_tup)
+        self.mox.ReplayAll()
+
+        cmd_parser = cmd.get_parser("test_" + resource)
+        parsed_args = cmd_parser.parse_args(args)
+        cmd.run(parsed_args)
+
+        self.mox.VerifyAll()
+        self.mox.UnsetStubs()
+        _str = self.fake_stdout.make_string()
+        self.assertIn('bytes_in', _str)
+        self.assertIn('1234', _str)
+        self.assertIn('bytes_out', _str)
+        self.assertIn('4321', _str)

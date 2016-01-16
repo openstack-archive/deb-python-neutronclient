@@ -21,7 +21,6 @@ import testtools
 
 from neutronclient import client
 from neutronclient.common import exceptions
-from neutronclient.tests.unit import test_auth
 
 
 AUTH_TOKEN = 'test_token'
@@ -45,7 +44,7 @@ class TestHTTPClientMixin(object):
         """Return client class, instance."""
 
     def _test_headers(self, expected_headers, **kwargs):
-        """Test headers."""
+        # Test headers.
         self.requests.register_uri(METHOD, URL,
                                    request_headers=expected_headers)
         self.http.request(URL, METHOD, **kwargs)
@@ -60,26 +59,18 @@ class TestHTTPClientMixin(object):
         self._test_headers(headers, body=BODY)
 
     def test_headers_without_body_with_content_type(self):
-        headers = {'Accept': 'application/xml'}
-        self._test_headers(headers, content_type='application/xml')
+        headers = {'Accept': 'application/json'}
+        self._test_headers(headers, content_type='application/json')
 
     def test_headers_with_body_with_content_type(self):
-        headers = {'Accept': 'application/xml',
-                   'Content-Type': 'application/xml'}
-        self._test_headers(headers, body=BODY, content_type='application/xml')
+        headers = {'Accept': 'application/json',
+                   'Content-Type': 'application/json'}
+        self._test_headers(headers, body=BODY, content_type='application/json')
 
     def test_headers_defined_in_headers(self):
-        headers = {'Accept': 'application/xml',
-                   'Content-Type': 'application/xml'}
+        headers = {'Accept': 'application/json',
+                   'Content-Type': 'application/json'}
         self._test_headers(headers, body=BODY, headers=headers)
-
-
-class TestSessionClient(TestHTTPClientMixin, testtools.TestCase):
-
-    def initialize(self):
-        session, auth = test_auth.setup_keystone_v2(self.requests)
-        return [client.SessionClient,
-                client.SessionClient(session=session, auth=auth)]
 
 
 class TestHTTPClient(TestHTTPClientMixin, testtools.TestCase):

@@ -16,8 +16,8 @@
 
 from __future__ import print_function
 
+from neutronclient._i18n import _
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 GW_RESOURCE = 'network_gateway'
@@ -175,17 +175,16 @@ class CreateNetworkGateway(neutronV20.CreateCommand):
                    'option for multiple devices for HA gateways.'))
 
     def args2body(self, parsed_args):
-        body = {self.resource: {
-            'name': parsed_args.name}}
+        body = {'name': parsed_args.name}
         devices = []
         if parsed_args.device:
             for device in parsed_args.device:
                 devices.append(utils.str2dict(device))
         if devices:
-            body[self.resource].update({'devices': devices})
+            body['devices'] = devices
         if parsed_args.tenant_id:
-            body[self.resource].update({'tenant_id': parsed_args.tenant_id})
-        return body
+            body['tenant_id'] = parsed_args.tenant_id
+        return {self.resource: body}
 
 
 class DeleteNetworkGateway(neutronV20.DeleteCommand):
@@ -238,7 +237,6 @@ class ConnectNetworkGateway(NetworkGatewayInterfaceCommand):
     def run(self, parsed_args):
         self.log.debug('run(%s)' % parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         (gateway_id, network_id) = self.retrieve_ids(neutron_client,
                                                      parsed_args)
         neutron_client.connect_network_gateway(
@@ -257,7 +255,6 @@ class DisconnectNetworkGateway(NetworkGatewayInterfaceCommand):
     def run(self, parsed_args):
         self.log.debug('run(%s)' % parsed_args)
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         (gateway_id, network_id) = self.retrieve_ids(neutron_client,
                                                      parsed_args)
         neutron_client.disconnect_network_gateway(

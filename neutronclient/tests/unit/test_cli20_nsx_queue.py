@@ -21,12 +21,15 @@ from neutronclient.tests.unit import test_cli20
 
 
 class CLITestV20QosQueueJSON(test_cli20.CLITestV20Base):
+
+    non_admin_status_resources = ['qos_queue']
+
     def setUp(self):
         super(CLITestV20QosQueueJSON, self).setUp(
             plurals={'qos_queues': 'qos_queue'})
 
     def test_create_qos_queue(self):
-        """Create a qos queue."""
+        # Create a qos queue.
         resource = 'qos_queue'
         cmd = qos.CreateQoSQueue(
             test_cli20.MyApp(sys.stdout), None)
@@ -40,7 +43,7 @@ class CLITestV20QosQueueJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_qos_queue_all_values(self):
-        """Create a qos queue."""
+        # Create a qos queue.
         resource = 'qos_queue'
         cmd = qos.CreateQoSQueue(
             test_cli20.MyApp(sys.stdout), None)
@@ -80,7 +83,3 @@ class CLITestV20QosQueueJSON(test_cli20.CLITestV20Base):
         myid = 'myid'
         args = [myid]
         self._test_delete_resource(resource, cmd, myid, args)
-
-
-class CLITestV20QosQueueXML(CLITestV20QosQueueJSON):
-    format = 'xml'

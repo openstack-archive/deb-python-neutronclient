@@ -16,8 +16,8 @@
 
 import argparse
 
+from neutronclient._i18n import _
 from neutronclient.common import exceptions
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 
 
@@ -91,6 +91,12 @@ def _format_sg_rules(secgroup):
         return ''
 
 
+def generate_default_ethertype(protocol):
+    if protocol == 'icmpv6':
+        return 'IPv6'
+    return 'IPv4'
+
+
 class ListSecurityGroup(neutronV20.ListCommand):
     """List security groups that belong to a given tenant."""
 
@@ -123,14 +129,10 @@ class CreateSecurityGroup(neutronV20.CreateCommand):
             help=_('Description of security group.'))
 
     def args2body(self, parsed_args):
-        body = {'security_group': {
-            'name': parsed_args.name}}
-        if parsed_args.description:
-            body['security_group'].update(
-                {'description': parsed_args.description})
-        if parsed_args.tenant_id:
-            body['security_group'].update({'tenant_id': parsed_args.tenant_id})
-        return body
+        body = {'name': parsed_args.name}
+        neutronV20.update_dict(parsed_args, body,
+                               ['description', 'tenant_id'])
+        return {'security_group': body}
 
 
 class DeleteSecurityGroup(neutronV20.DeleteCommand):
@@ -154,14 +156,10 @@ class UpdateSecurityGroup(neutronV20.UpdateCommand):
             help=_('Description of security group.'))
 
     def args2body(self, parsed_args):
-        body = {'security_group': {}}
-        if parsed_args.name:
-            body['security_group'].update(
-                {'name': parsed_args.name})
-        if parsed_args.description:
-            body['security_group'].update(
-                {'description': parsed_args.description})
-        return body
+        body = {}
+        neutronV20.update_dict(parsed_args, body,
+                               ['name', 'description'])
+        return {'security_group': body}
 
 
 class ListSecurityGroupRule(neutronV20.ListCommand):
@@ -169,15 +167,20 @@ class ListSecurityGroupRule(neutronV20.ListCommand):
 
     resource = 'security_group_rule'
     list_columns = ['id', 'security_group_id', 'direction',
-                    'ethertype', 'protocol/port', 'remote']
+                    'ethertype', 'port/protocol', 'remote']
     # replace_rules: key is an attribute name in Neutron API and
     # corresponding value is a display name shown by CLI.
     replace_rules = {'security_group_id': 'security_group',
                      'remote_group_id': 'remote_group'}
     digest_fields = {
+        # The entry 'protocol/port' is leaving deliberetely for keep
+        # compatibility,
         'remote': {
             'method': _get_remote,
             'depends_on': ['remote_ip_prefix', 'remote_group_id']},
+        'port/protocol': {
+            'method': _get_protocol_port,
+            'depends_on': ['protocol', 'port_range_min', 'port_range_max']},
         'protocol/port': {
             'method': _get_protocol_port,
             'depends_on': ['protocol', 'port_range_min', 'port_range_max']}}
@@ -311,20 +314,21 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
             help=_('Direction of traffic: ingress/egress.'))
         parser.add_argument(
             '--ethertype',
-            default='IPv4',
             help=_('IPv4/IPv6'))
         parser.add_argument(
             '--protocol',
-            help=_('Protocol of packet.'))
+            help=_('Protocol of packet. Allowed values are '
+                   '[icmp, icmpv6, tcp, udp] and '
+                   'integer representations [0-255]'))
         parser.add_argument(
             '--port-range-min',
-            help=_('Starting port range.'))
+            help=_('Starting port range. For ICMP it is type.'))
         parser.add_argument(
             '--port_range_min',
             help=argparse.SUPPRESS)
         parser.add_argument(
             '--port-range-max',
-            help=_('Ending port range.'))
+            help=_('Ending port range. For ICMP it is code.'))
         parser.add_argument(
             '--port_range_max',
             help=argparse.SUPPRESS)
@@ -344,32 +348,19 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
     def args2body(self, parsed_args):
         _security_group_id = neutronV20.find_resourceid_by_name_or_id(
             self.get_client(), 'security_group', parsed_args.security_group_id)
-        body = {'security_group_rule': {
-            'security_group_id': _security_group_id,
-            'direction': parsed_args.direction,
-            'ethertype': parsed_args.ethertype}}
-        if parsed_args.protocol:
-            body['security_group_rule'].update(
-                {'protocol': parsed_args.protocol})
-        if parsed_args.port_range_min:
-            body['security_group_rule'].update(
-                {'port_range_min': parsed_args.port_range_min})
-        if parsed_args.port_range_max:
-            body['security_group_rule'].update(
-                {'port_range_max': parsed_args.port_range_max})
-        if parsed_args.remote_ip_prefix:
-            body['security_group_rule'].update(
-                {'remote_ip_prefix': parsed_args.remote_ip_prefix})
+        body = {'security_group_id': _security_group_id,
+                'direction': parsed_args.direction,
+                'ethertype': parsed_args.ethertype or
+                generate_default_ethertype(parsed_args.protocol)}
+        neutronV20.update_dict(parsed_args, body,
+                               ['protocol', 'port_range_min', 'port_range_max',
+                                'remote_ip_prefix', 'tenant_id'])
         if parsed_args.remote_group_id:
             _remote_group_id = neutronV20.find_resourceid_by_name_or_id(
                 self.get_client(), 'security_group',
                 parsed_args.remote_group_id)
-            body['security_group_rule'].update(
-                {'remote_group_id': _remote_group_id})
-        if parsed_args.tenant_id:
-            body['security_group_rule'].update(
-                {'tenant_id': parsed_args.tenant_id})
-        return body
+            body['remote_group_id'] = _remote_group_id
+        return {'security_group_rule': body}
 
 
 class DeleteSecurityGroupRule(neutronV20.DeleteCommand):

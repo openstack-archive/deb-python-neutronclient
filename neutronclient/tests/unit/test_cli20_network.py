@@ -30,7 +30,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         super(CLITestV20NetworkJSON, self).setUp(plurals={'tags': 'tag'})
 
     def test_create_network(self):
-        """Create net: myname."""
+        # Create net: myname.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -42,7 +42,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_network_with_unicode(self):
-        """Create net: u'\u7f51\u7edc'."""
+        # Create net: u'\u7f51\u7edc'.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = u'\u7f51\u7edc'
@@ -54,7 +54,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_network_tenant(self):
-        """Create net: --tenant_id tenantid myname."""
+        # Create net: --tenant_id tenantid myname.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -73,7 +73,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    tenant_id='tenantid')
 
     def test_create_network_provider_args(self):
-        """Create net: with --provider arguments."""
+        # Create net: with --provider arguments.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -91,7 +91,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values)
 
     def test_create_network_tags(self):
-        """Create net: myname --tags a b."""
+        # Create net: myname --tags a b.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -104,7 +104,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    tags=['a', 'b'])
 
     def test_create_network_state(self):
-        """Create net: --admin_state_down myname."""
+        # Create net: --admin_state_down myname.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -123,7 +123,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    admin_state_up=False)
 
     def test_create_network_vlan_transparent(self):
-        """Create net: myname --vlan-transparent True."""
+        # Create net: myname --vlan-transparent True.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -137,7 +137,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    **vlantrans)
 
     def test_create_network_with_qos_policy(self):
-        """Create net: --qos-policy mypolicy."""
+        # Create net: --qos-policy mypolicy.
         resource = 'network'
         cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
         name = 'myname'
@@ -146,6 +146,20 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         args = [name, '--qos-policy', qos_policy_name]
         position_names = ['name', 'qos_policy_id']
         position_values = [name, qos_policy_name]
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values)
+
+    def test_create_network_with_az_hint(self):
+        # Create net: --availability-zone-hint zone1
+        # --availability-zone-hint zone2.
+        resource = 'network'
+        cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+        args = ['--availability-zone-hint', 'zone1',
+                '--availability-zone-hint', 'zone2', name]
+        position_names = ['availability_zone_hints', 'name']
+        position_values = [['zone1', 'zone2'], name]
         self._test_create_resource(resource, cmd, name, myid, args,
                                    position_names, position_values)
 
@@ -197,49 +211,46 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self._test_list_resources_with_pagination("networks", cmd)
 
     def test_list_nets_sort(self):
-        """list nets: --sort-key name --sort-key id --sort-dir asc
-        --sort-dir desc
-        """
+        # list nets:
+        # --sort-key name --sort-key id --sort-dir asc --sort-dir desc
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, sort_key=['name', 'id'],
                                  sort_dir=['asc', 'desc'])
 
     def test_list_nets_sort_with_keys_more_than_dirs(self):
-        """list nets: --sort-key name --sort-key id --sort-dir desc
-        """
+        # list nets: --sort-key name --sort-key id --sort-dir desc
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, sort_key=['name', 'id'],
                                  sort_dir=['desc'])
 
     def test_list_nets_sort_with_dirs_more_than_keys(self):
-        """list nets: --sort-key name --sort-dir desc --sort-dir asc
-        """
+        # list nets: --sort-key name --sort-dir desc --sort-dir asc
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, sort_key=['name'],
                                  sort_dir=['desc', 'asc'])
 
     def test_list_nets_limit(self):
-        """list nets: -P."""
+        # list nets: -P.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, page_size=1000)
 
     def test_list_nets_detail(self):
-        """list nets: -D."""
+        # list nets: -D.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, True)
 
     def test_list_nets_tags(self):
-        """List nets: -- --tags a b."""
+        # List nets: -- --tags a b.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, tags=['a', 'b'])
 
     def test_list_nets_tags_with_unicode(self):
-        """List nets: -- --tags u'\u7f51\u7edc'."""
+        # List nets: -- --tags u'\u7f51\u7edc'.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, tags=[u'\u7f51\u7edc'])
 
     def test_list_nets_detail_tags(self):
-        """List nets: -D -- --tags a b."""
+        # List nets: -D -- --tags a b.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd, detail=True, tags=['a', 'b'])
 
@@ -281,11 +292,11 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
         _result = [x for x in result[1]]
-        self.assertEqual(len(_result), len(expected))
+        self.assertEqual(len(expected), len(_result))
         for res, exp in zip(_result, expected):
-            self.assertEqual(len(res), len(exp))
-            for a, b in zip(res, exp):
-                self.assertEqual(a, b)
+            self.assertEqual(len(exp), len(res))
+            for obsrvd, expctd in zip(res, exp):
+                self.assertEqual(expctd, obsrvd)
 
     def test_list_nets_extend_subnets(self):
         data = [{'id': 'netid1', 'name': 'net1', 'subnets': ['mysubid1']},
@@ -306,7 +317,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self._test_list_nets_extend_subnets(data, expected)
 
     def test_list_nets_fields(self):
-        """List nets: --fields a --fields b -- --fields c d."""
+        # List nets: --fields a --fields b -- --fields c d.
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_networks(cmd,
                                  fields_1=['a', 'b'], fields_2=['c', 'd'])
@@ -444,27 +455,27 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self.assertIn('myid1', _str)
 
     def test_list_external_nets_detail(self):
-        """list external nets: -D."""
+        # list external nets: -D.
         resources = "networks"
         cmd = network.ListExternalNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_external_nets(resources, cmd, True)
 
     def test_list_external_nets_tags(self):
-        """List external nets: -- --tags a b."""
+        # List external nets: -- --tags a b.
         resources = "networks"
         cmd = network.ListExternalNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_external_nets(resources,
                                       cmd, tags=['a', 'b'])
 
     def test_list_external_nets_detail_tags(self):
-        """List external nets: -D -- --tags a b."""
+        # List external nets: -D -- --tags a b.
         resources = "networks"
         cmd = network.ListExternalNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_external_nets(resources, cmd,
                                       detail=True, tags=['a', 'b'])
 
     def test_list_externel_nets_fields(self):
-        """List external nets: --fields a --fields b -- --fields c d."""
+        # List external nets: --fields a --fields b -- --fields c d.
         resources = "networks"
         cmd = network.ListExternalNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_list_external_nets(resources, cmd,
@@ -472,14 +483,14 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                       fields_2=['c', 'd'])
 
     def test_update_network_exception(self):
-        """Update net: myid."""
+        # Update net: myid.
         resource = 'network'
         cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
         self.assertRaises(exceptions.CommandError, self._test_update_resource,
                           resource, cmd, 'myid', ['myid'], {})
 
     def test_update_network(self):
-        """Update net: myid --name myname --tags a b."""
+        # Update net: myid --name myname --tags a b.
         resource = 'network'
         cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -489,7 +500,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_update_network_with_unicode(self):
-        """Update net: myid --name u'\u7f51\u7edc' --tags a b."""
+        # Update net: myid --name u'\u7f51\u7edc' --tags a b.
         resource = 'network'
         cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -500,7 +511,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    )
 
     def test_update_network_with_qos_policy(self):
-        """Update net: myid --qos-policy mypolicy."""
+        # Update net: myid --qos-policy mypolicy.
         resource = 'network'
         cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -508,7 +519,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    {'qos_policy_id': 'mypolicy', })
 
     def test_update_network_with_no_qos_policy(self):
-        """Update net: myid --no-qos-policy."""
+        # Update net: myid --no-qos-policy.
         resource = 'network'
         cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
@@ -516,7 +527,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    {'qos_policy_id': None, })
 
     def test_show_network(self):
-        """Show net: --fields id --fields name myid."""
+        # Show net: --fields id --fields name myid.
         resource = 'network'
         cmd = network.ShowNetwork(test_cli20.MyApp(sys.stdout), None)
         args = ['--fields', 'id', '--fields', 'name', self.test_id]
@@ -524,7 +535,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                  ['id', 'name'])
 
     def test_delete_network(self):
-        """Delete net: myid."""
+        # Delete net: myid.
         resource = 'network'
         cmd = network.DeleteNetwork(test_cli20.MyApp(sys.stdout), None)
         myid = 'myid'
@@ -600,7 +611,3 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                         'X-Auth-Token', test_cli20.TOKEN)).AndReturn(response)
 
         self._test_extend_list(mox_calls)
-
-
-class CLITestV20NetworkXML(CLITestV20NetworkJSON):
-    format = 'xml'

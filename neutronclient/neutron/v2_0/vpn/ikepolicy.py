@@ -14,8 +14,8 @@
 #    under the License.
 #
 
+from neutronclient._i18n import _
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronv20
 from neutronclient.neutron.v2_0.vpn import utils as vpn_utils
 
@@ -78,23 +78,15 @@ class CreateIKEPolicy(neutronv20.CreateCommand):
 
     def args2body(self, parsed_args):
 
-        body = {'ikepolicy': {
-            'auth_algorithm': parsed_args.auth_algorithm,
-            'encryption_algorithm': parsed_args.encryption_algorithm,
-            'phase1_negotiation_mode': parsed_args.phase1_negotiation_mode,
-            'ike_version': parsed_args.ike_version,
-            'pfs': parsed_args.pfs,
-        }, }
-        if parsed_args.name:
-            body['ikepolicy'].update({'name': parsed_args.name})
-        if parsed_args.description:
-            body['ikepolicy'].update({'description': parsed_args.description})
-        if parsed_args.tenant_id:
-            body['ikepolicy'].update({'tenant_id': parsed_args.tenant_id})
+        body = {}
+        neutronv20.update_dict(parsed_args, body,
+                               ['auth_algorithm', 'encryption_algorithm',
+                                'phase1_negotiation_mode', 'ike_version',
+                                'pfs', 'name', 'description', 'tenant_id'])
         if parsed_args.lifetime:
             vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['ikepolicy'].update({'lifetime': parsed_args.lifetime})
-        return body
+            body['lifetime'] = parsed_args.lifetime
+        return {'ikepolicy': body}
 
 
 class UpdateIKEPolicy(neutronv20.UpdateCommand):
@@ -111,12 +103,11 @@ class UpdateIKEPolicy(neutronv20.UpdateCommand):
 
     def args2body(self, parsed_args):
 
-        body = {'ikepolicy': {
-        }, }
+        body = {}
         if parsed_args.lifetime:
             vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['ikepolicy'].update({'lifetime': parsed_args.lifetime})
-        return body
+            body['lifetime'] = parsed_args.lifetime
+        return {'ikepolicy': body}
 
 
 class DeleteIKEPolicy(neutronv20.DeleteCommand):

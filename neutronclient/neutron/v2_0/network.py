@@ -16,10 +16,11 @@
 
 import argparse
 
+from neutronclient._i18n import _
 from neutronclient.common import exceptions
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
+from neutronclient.neutron.v2_0 import availability_zone
 from neutronclient.neutron.v2_0.qos import policy as qos_policy
 
 
@@ -146,21 +147,22 @@ class CreateNetwork(neutronV20.CreateCommand, qos_policy.CreateQosPolicyMixin):
             help=_('Name of network to create.'))
 
         self.add_arguments_qos_policy(parser)
+        availability_zone.add_az_hint_argument(parser, self.resource)
 
     def args2body(self, parsed_args):
-        body = {'network': {
-            'name': parsed_args.name,
-            'admin_state_up': parsed_args.admin_state}, }
-        neutronV20.update_dict(parsed_args, body['network'],
+        body = {'name': parsed_args.name,
+                'admin_state_up': parsed_args.admin_state}
+        neutronV20.update_dict(parsed_args, body,
                                ['shared', 'tenant_id',
                                 'vlan_transparent',
                                 'provider:network_type',
                                 'provider:physical_network',
                                 'provider:segmentation_id'])
 
-        self.args2body_qos_policy(parsed_args, body['network'])
+        self.args2body_qos_policy(parsed_args, body)
+        availability_zone.args2body_az_hint(parsed_args, body)
 
-        return body
+        return {'network': body}
 
 
 class DeleteNetwork(neutronV20.DeleteCommand):
@@ -178,6 +180,6 @@ class UpdateNetwork(neutronV20.UpdateCommand, qos_policy.UpdateQosPolicyMixin):
         self.add_arguments_qos_policy(parser)
 
     def args2body(self, parsed_args):
-        body = {'network': {}}
-        self.args2body_qos_policy(parsed_args, body['network'])
-        return body
+        body = {}
+        self.args2body_qos_policy(parsed_args, body)
+        return {'network': body}

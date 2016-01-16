@@ -18,9 +18,9 @@ import argparse
 
 from oslo_serialization import jsonutils
 
+from neutronclient._i18n import _
 from neutronclient.common import exceptions
 from neutronclient.common import utils
-from neutronclient.i18n import _
 from neutronclient.neutron import v2_0 as neutronV20
 from neutronclient.neutron.v2_0.qos import policy as qos_policy
 
@@ -68,12 +68,8 @@ def _add_updatable_args(parser):
 
 
 def _updatable_args2body(parsed_args, body, client):
-    if parsed_args.device_id:
-        body['port'].update({'device_id': parsed_args.device_id})
-    if parsed_args.device_owner:
-        body['port'].update({'device_owner': parsed_args.device_owner})
-    if parsed_args.name:
-        body['port'].update({'name': parsed_args.name})
+    neutronV20.update_dict(parsed_args, body,
+                           ['device_id', 'device_owner', 'name'])
     ips = []
     if parsed_args.fixed_ip:
         for ip_spec in parsed_args.fixed_ip:
@@ -85,7 +81,7 @@ def _updatable_args2body(parsed_args, body, client):
                 ip_dict['subnet_id'] = _subnet_id
             ips.append(ip_dict)
     if ips:
-        body['port'].update({'fixed_ips': ips})
+        body['fixed_ips'] = ips
 
 
 class ListPort(neutronV20.ListCommand):
@@ -117,7 +113,6 @@ class ListRouterPort(neutronV20.ListCommand):
 
     def get_data(self, parsed_args):
         neutron_client = self.get_client()
-        neutron_client.format = parsed_args.request_format
         _id = neutronV20.find_resourceid_by_name_or_id(
             neutron_client, 'router', parsed_args.id)
         self.values_specs.append('--device_id=%s' % _id)
@@ -190,11 +185,38 @@ class UpdateExtraDhcpOptMixin(object):
                     raise exceptions.CommandError(edo_err_msg)
 
         if ops:
-            port.update({'extra_dhcp_opts': ops})
+            port['extra_dhcp_opts'] = ops
+
+
+class UpdatePortAllowedAddressPair(object):
+    """Update Port for allowed_address_pairs"""
+
+    def add_arguments_allowedaddresspairs(self, parser):
+        group_aap = parser.add_mutually_exclusive_group()
+        group_aap.add_argument(
+            '--allowed-address-pair',
+            metavar='ip_address=IP_ADDR[,mac_address=MAC_ADDR]',
+            default=[],
+            action='append',
+            dest='allowed_address_pairs',
+            type=utils.str2dict,
+            help=_('Allowed address pair associated with the port.'
+                   'You can repeat this option.'))
+        group_aap.add_argument(
+            '--no-allowed-address-pairs',
+            action='store_true',
+            help=_('Associate no allowed address pairs with the port.'))
+
+    def args2body_allowedaddresspairs(self, parsed_args, port):
+        if parsed_args.allowed_address_pairs:
+            port['allowed_address_pairs'] = parsed_args.allowed_address_pairs
+        elif parsed_args.no_allowed_address_pairs:
+            port['allowed_address_pairs'] = []
 
 
 class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
-                 UpdateExtraDhcpOptMixin, qos_policy.CreateQosPolicyMixin):
+                 UpdateExtraDhcpOptMixin, qos_policy.CreateQosPolicyMixin,
+                 UpdatePortAllowedAddressPair):
     """Create a port for a given tenant."""
 
     resource = 'port'
@@ -216,12 +238,16 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
             '--mac_address',
             help=argparse.SUPPRESS)
         parser.add_argument(
-            '--vnic-type', metavar='<direct | macvtap | normal>',
-            choices=['direct', 'macvtap', 'normal'],
+            '--vnic-type',
+            metavar='<direct | direct-physical | macvtap '
+                    '| normal | baremetal>',
+            choices=['direct', 'direct-physical', 'macvtap',
+                     'normal', 'baremetal'],
             help=_('VNIC type for this port.'))
         parser.add_argument(
             '--vnic_type',
-            choices=['direct', 'macvtap', 'normal'],
+            choices=['direct', 'direct-physical', 'macvtap',
+                     'normal', 'baremetal'],
             help=argparse.SUPPRESS)
         parser.add_argument(
             '--binding-profile',
@@ -232,6 +258,7 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
         self.add_arguments_secgroup(parser)
         self.add_arguments_extradhcpopt(parser)
         self.add_arguments_qos_policy(parser)
+        self.add_arguments_allowedaddresspairs(parser)
 
         parser.add_argument(
             'network_id', metavar='NETWORK',
@@ -241,24 +268,23 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
         client = self.get_client()
         _network_id = neutronV20.find_resourceid_by_name_or_id(
             client, 'network', parsed_args.network_id)
-        body = {'port': {'admin_state_up': parsed_args.admin_state,
-                         'network_id': _network_id, }, }
+        body = {'admin_state_up': parsed_args.admin_state,
+                'network_id': _network_id, }
         _updatable_args2body(parsed_args, body, client)
-        if parsed_args.mac_address:
-            body['port'].update({'mac_address': parsed_args.mac_address})
-        if parsed_args.tenant_id:
-            body['port'].update({'tenant_id': parsed_args.tenant_id})
+        neutronV20.update_dict(parsed_args, body,
+                               ['mac_address', 'tenant_id'])
         if parsed_args.vnic_type:
-            body['port'].update({'binding:vnic_type': parsed_args.vnic_type})
+            body['binding:vnic_type'] = parsed_args.vnic_type
         if parsed_args.binding_profile:
-            body['port'].update({'binding:profile':
-                                 jsonutils.loads(parsed_args.binding_profile)})
+            body['binding:profile'] = jsonutils.loads(
+                parsed_args.binding_profile)
 
-        self.args2body_secgroup(parsed_args, body['port'])
-        self.args2body_extradhcpopt(parsed_args, body['port'])
-        self.args2body_qos_policy(parsed_args, body['port'])
+        self.args2body_secgroup(parsed_args, body)
+        self.args2body_extradhcpopt(parsed_args, body)
+        self.args2body_qos_policy(parsed_args, body)
+        self.args2body_allowedaddresspairs(parsed_args, body)
 
-        return body
+        return {'port': body}
 
 
 class DeletePort(neutronV20.DeleteCommand):
@@ -268,7 +294,8 @@ class DeletePort(neutronV20.DeleteCommand):
 
 
 class UpdatePort(neutronV20.UpdateCommand, UpdatePortSecGroupMixin,
-                 UpdateExtraDhcpOptMixin, qos_policy.UpdateQosPolicyMixin):
+                 UpdateExtraDhcpOptMixin, qos_policy.UpdateQosPolicyMixin,
+                 UpdatePortAllowedAddressPair):
     """Update port's information."""
 
     resource = 'port'
@@ -286,17 +313,18 @@ class UpdatePort(neutronV20.UpdateCommand, UpdatePortSecGroupMixin,
         self.add_arguments_secgroup(parser)
         self.add_arguments_extradhcpopt(parser)
         self.add_arguments_qos_policy(parser)
+        self.add_arguments_allowedaddresspairs(parser)
 
     def args2body(self, parsed_args):
-        body = {'port': {}}
+        body = {}
         client = self.get_client()
         _updatable_args2body(parsed_args, body, client)
         if parsed_args.admin_state_up:
-            body['port'].update({'admin_state_up':
-                                parsed_args.admin_state_up})
+            body['admin_state_up'] = parsed_args.admin_state_up
 
-        self.args2body_secgroup(parsed_args, body['port'])
-        self.args2body_extradhcpopt(parsed_args, body['port'])
-        self.args2body_qos_policy(parsed_args, body['port'])
+        self.args2body_secgroup(parsed_args, body)
+        self.args2body_extradhcpopt(parsed_args, body)
+        self.args2body_qos_policy(parsed_args, body)
+        self.args2body_allowedaddresspairs(parsed_args, body)
 
-        return body
+        return {'port': body}
