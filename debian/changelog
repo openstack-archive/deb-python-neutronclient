@@ -1,6 +1,7 @@
 python-neutronclient (1:4.0.0-1) experimental; urgency=medium
 
   * New upstream release.
+  * Fixed (build-)depends for this release.
 
  -- Thomas Goirand <zigo@debian.org>  Sat, 16 Jan 2016 06:03:08 +0000
 
