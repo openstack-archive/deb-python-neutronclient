@@ -63,7 +63,7 @@ Build-Depends-Indep: python-babel,
 Standards-Version: 3.9.6
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-neutronclient.git;a=summary
 Vcs-Git: git://anonscm.debian.org/openstack/python-neutronclient.git
-Homepage: http://launchpad.net/python-neutronclient
+Homepage: https://launchpad.net/python-neutronclient
 XS-Testsuite: autopkgtest
 
 Package: python-neutronclient
