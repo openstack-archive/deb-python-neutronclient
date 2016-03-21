@@ -37,7 +37,6 @@ def get_tenant_id(args, client):
 class DeleteQuota(neutronV20.NeutronCommand):
     """Delete defined quotas of a given tenant."""
 
-    api = 'network'
     resource = 'quota'
 
     def get_parser(self, prog_name):
@@ -53,8 +52,7 @@ class DeleteQuota(neutronV20.NeutronCommand):
             help=argparse.SUPPRESS, nargs='?')
         return parser
 
-    def run(self, parsed_args):
-        self.log.debug('run(%s)' % parsed_args)
+    def take_action(self, parsed_args):
         neutron_client = self.get_client()
         tenant_id = get_tenant_id(parsed_args, neutron_client)
         obj_deleter = getattr(neutron_client,
@@ -70,15 +68,13 @@ class DeleteQuota(neutronV20.NeutronCommand):
 class ListQuota(neutronV20.NeutronCommand, lister.Lister):
     """List quotas of all tenants who have non-default quota values."""
 
-    api = 'network'
     resource = 'quota'
 
     def get_parser(self, prog_name):
         parser = super(ListQuota, self).get_parser(prog_name)
         return parser
 
-    def get_data(self, parsed_args):
-        self.log.debug('get_data(%s)', parsed_args)
+    def take_action(self, parsed_args):
         neutron_client = self.get_client()
         search_opts = {}
         self.log.debug('search options: %s', search_opts)
@@ -98,7 +94,6 @@ class ShowQuota(neutronV20.NeutronCommand, show.ShowOne):
     """Show quotas of a given tenant.
 
     """
-    api = 'network'
     resource = "quota"
 
     def get_parser(self, prog_name):
@@ -117,8 +112,7 @@ class ShowQuota(neutronV20.NeutronCommand, show.ShowOne):
             help=argparse.SUPPRESS, nargs='?')
         return parser
 
-    def get_data(self, parsed_args):
-        self.log.debug('get_data(%s)', parsed_args)
+    def take_action(self, parsed_args):
         neutron_client = self.get_client()
         tenant_id = get_tenant_id(parsed_args, neutron_client)
         params = {}
@@ -216,8 +210,7 @@ class UpdateQuota(neutronV20.NeutronCommand, show.ShowOne):
                     getattr(parsed_args, resource))
         return {self.resource: quota}
 
-    def get_data(self, parsed_args):
-        self.log.debug('run(%s)', parsed_args)
+    def take_action(self, parsed_args):
         neutron_client = self.get_client()
         _extra_values = neutronV20.parse_args_to_dict(self.values_specs)
         neutronV20._merge_args(self, parsed_args, _extra_values,

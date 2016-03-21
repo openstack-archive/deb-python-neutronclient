@@ -62,16 +62,19 @@ def add_updatable_arguments(parser):
         help=_('No distribution of gateway.'))
     parser.add_argument(
         '--allocation-pool', metavar='start=IP_ADDR,end=IP_ADDR',
-        action='append', dest='allocation_pools', type=utils.str2dict,
+        action='append', dest='allocation_pools',
+        type=utils.str2dict_type(required_keys=['start', 'end']),
         help=_('Allocation pool IP addresses for this subnet '
                '(This option can be repeated).'))
     parser.add_argument(
         '--allocation_pool',
-        action='append', dest='allocation_pools', type=utils.str2dict,
+        action='append', dest='allocation_pools',
+        type=utils.str2dict_type(required_keys=['start', 'end']),
         help=argparse.SUPPRESS)
     parser.add_argument(
         '--host-route', metavar='destination=CIDR,nexthop=IP_ADDR',
-        action='append', dest='host_routes', type=utils.str2dict,
+        action='append', dest='host_routes',
+        type=utils.str2dict_type(required_keys=['destination', 'nexthop']),
         help=_('Additional route (This option can be repeated).'))
     parser.add_argument(
         '--dns-nameserver', metavar='DNS_NAMESERVER',
@@ -188,6 +191,10 @@ class CreateSubnet(neutronV20.CreateCommand):
             help=_('ID or name of subnetpool from which this subnet '
                    'will obtain a CIDR.'))
         parser.add_argument(
+            '--use-default-subnetpool',
+            action='store_true',
+            help=_('Use default subnetpool for ip_version, if it exists.'))
+        parser.add_argument(
             '--prefixlen', metavar='PREFIX_LENGTH',
             help=_('Prefix length for subnet allocation from subnetpool.'))
 
@@ -199,6 +206,8 @@ class CreateSubnet(neutronV20.CreateCommand):
         if parsed_args.prefixlen:
             body['prefixlen'] = parsed_args.prefixlen
         ip_version = parsed_args.ip_version
+        if parsed_args.use_default_subnetpool:
+            body['use_default_subnetpool'] = True
         if parsed_args.subnetpool:
             if parsed_args.subnetpool == 'None':
                 _subnetpool_id = None

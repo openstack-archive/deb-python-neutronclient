@@ -32,18 +32,22 @@ import os_client_config
 from oslo_utils import encodeutils
 
 from cliff import app
+from cliff import command
 from cliff import commandmanager
 
 from neutronclient._i18n import _
 from neutronclient.common import clientmanager
-from neutronclient.common import command as openstack_command
 from neutronclient.common import exceptions as exc
 from neutronclient.common import extension as client_extension
 from neutronclient.common import utils
 from neutronclient.neutron.v2_0 import address_scope
 from neutronclient.neutron.v2_0 import agent
 from neutronclient.neutron.v2_0 import agentscheduler
+from neutronclient.neutron.v2_0 import auto_allocated_topology
 from neutronclient.neutron.v2_0 import availability_zone
+from neutronclient.neutron.v2_0.bgp import dragentscheduler as bgp_drsched
+from neutronclient.neutron.v2_0.bgp import peer as bgp_peer
+from neutronclient.neutron.v2_0.bgp import speaker as bgp_speaker
 from neutronclient.neutron.v2_0 import extension
 from neutronclient.neutron.v2_0.flavor import flavor
 from neutronclient.neutron.v2_0.flavor import flavor_profile
@@ -55,6 +59,8 @@ from neutronclient.neutron.v2_0.lb import healthmonitor as lb_healthmonitor
 from neutronclient.neutron.v2_0.lb import member as lb_member
 from neutronclient.neutron.v2_0.lb import pool as lb_pool
 from neutronclient.neutron.v2_0.lb.v2 import healthmonitor as lbaas_healthmon
+from neutronclient.neutron.v2_0.lb.v2 import l7policy as lbaas_l7policy
+from neutronclient.neutron.v2_0.lb.v2 import l7rule as lbaas_l7rule
 from neutronclient.neutron.v2_0.lb.v2 import listener as lbaas_listener
 from neutronclient.neutron.v2_0.lb.v2 import loadbalancer as lbaas_loadbalancer
 from neutronclient.neutron.v2_0.lb.v2 import member as lbaas_member
@@ -62,9 +68,11 @@ from neutronclient.neutron.v2_0.lb.v2 import pool as lbaas_pool
 from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import metering
 from neutronclient.neutron.v2_0 import network
+from neutronclient.neutron.v2_0 import network_ip_availability
 from neutronclient.neutron.v2_0.nsx import networkgateway
 from neutronclient.neutron.v2_0.nsx import qos_queue
 from neutronclient.neutron.v2_0 import port
+from neutronclient.neutron.v2_0 import purge
 from neutronclient.neutron.v2_0.qos import bandwidth_limit_rule
 from neutronclient.neutron.v2_0.qos import policy as qos_policy
 from neutronclient.neutron.v2_0.qos import rule as qos_rule
@@ -75,6 +83,7 @@ from neutronclient.neutron.v2_0 import securitygroup
 from neutronclient.neutron.v2_0 import servicetype
 from neutronclient.neutron.v2_0 import subnet
 from neutronclient.neutron.v2_0 import subnetpool
+from neutronclient.neutron.v2_0 import tag
 from neutronclient.neutron.v2_0.vpn import endpoint_group
 from neutronclient.neutron.v2_0.vpn import ikepolicy
 from neutronclient.neutron.v2_0.vpn import ipsec_site_connection
@@ -140,9 +149,12 @@ def check_non_negative_int(value):
     return value
 
 
-class BashCompletionCommand(openstack_command.OpenStackCommand):
+class BashCompletionCommand(command.Command):
     """Prints all of the commands and options for bash-completion."""
-    resource = "bash_completion"
+
+    def take_action(self, parsed_args):
+        pass
+
 
 COMMAND_V2 = {
     'bash-completion': BashCompletionCommand,
@@ -167,6 +179,7 @@ COMMAND_V2 = {
     'port-create': port.CreatePort,
     'port-delete': port.DeletePort,
     'port-update': port.UpdatePort,
+    'purge': purge.Purge,
     'quota-list': quota.ListQuota,
     'quota-show': quota.ShowQuota,
     'quota-delete': quota.DeleteQuota,
@@ -204,11 +217,22 @@ COMMAND_V2 = {
     'lbaas-loadbalancer-update': lbaas_loadbalancer.UpdateLoadBalancer,
     'lbaas-loadbalancer-delete': lbaas_loadbalancer.DeleteLoadBalancer,
     'lbaas-loadbalancer-stats': lbaas_loadbalancer.RetrieveLoadBalancerStats,
+    'lbaas-loadbalancer-status': lbaas_loadbalancer.RetrieveLoadBalancerStatus,
     'lbaas-listener-list': lbaas_listener.ListListener,
     'lbaas-listener-show': lbaas_listener.ShowListener,
     'lbaas-listener-create': lbaas_listener.CreateListener,
     'lbaas-listener-update': lbaas_listener.UpdateListener,
     'lbaas-listener-delete': lbaas_listener.DeleteListener,
+    'lbaas-l7policy-list': lbaas_l7policy.ListL7Policy,
+    'lbaas-l7policy-show': lbaas_l7policy.ShowL7Policy,
+    'lbaas-l7policy-create': lbaas_l7policy.CreateL7Policy,
+    'lbaas-l7policy-update': lbaas_l7policy.UpdateL7Policy,
+    'lbaas-l7policy-delete': lbaas_l7policy.DeleteL7Policy,
+    'lbaas-l7rule-list': lbaas_l7rule.ListL7Rule,
+    'lbaas-l7rule-show': lbaas_l7rule.ShowL7Rule,
+    'lbaas-l7rule-create': lbaas_l7rule.CreateL7Rule,
+    'lbaas-l7rule-update': lbaas_l7rule.UpdateL7Rule,
+    'lbaas-l7rule-delete': lbaas_l7rule.DeleteL7Rule,
     'lbaas-pool-list': lbaas_pool.ListPool,
     'lbaas-pool-show': lbaas_pool.ShowPool,
     'lbaas-pool-create': lbaas_pool.CreatePool,
@@ -388,6 +412,42 @@ COMMAND_V2 = {
     'flavor-profile-delete': flavor_profile.DeleteFlavorProfile,
     'flavor-profile-update': flavor_profile.UpdateFlavorProfile,
     'availability-zone-list': availability_zone.ListAvailabilityZone,
+    'auto-allocated-topology-show': (
+        auto_allocated_topology.ShowAutoAllocatedTopology),
+    'bgp-dragent-speaker-add': (
+        bgp_drsched.AddBGPSpeakerToDRAgent
+    ),
+    'bgp-dragent-speaker-remove': (
+        bgp_drsched.RemoveBGPSpeakerFromDRAgent
+    ),
+    'bgp-speaker-list-on-dragent': (
+        bgp_drsched.ListBGPSpeakersOnDRAgent
+    ),
+    'bgp-dragent-list-hosting-speaker': (
+        bgp_drsched.ListDRAgentsHostingBGPSpeaker
+    ),
+    'bgp-speaker-list': bgp_speaker.ListSpeakers,
+    'bgp-speaker-advertiseroute-list': (
+        bgp_speaker.ListRoutesAdvertisedBySpeaker
+    ),
+    'bgp-speaker-show': bgp_speaker.ShowSpeaker,
+    'bgp-speaker-create': bgp_speaker.CreateSpeaker,
+    'bgp-speaker-update': bgp_speaker.UpdateSpeaker,
+    'bgp-speaker-delete': bgp_speaker.DeleteSpeaker,
+    'bgp-speaker-peer-add': bgp_speaker.AddPeerToSpeaker,
+    'bgp-speaker-peer-remove': bgp_speaker.RemovePeerFromSpeaker,
+    'bgp-speaker-network-add': bgp_speaker.AddNetworkToSpeaker,
+    'bgp-speaker-network-remove': bgp_speaker.RemoveNetworkFromSpeaker,
+    'bgp-peer-list': bgp_peer.ListPeers,
+    'bgp-peer-show': bgp_peer.ShowPeer,
+    'bgp-peer-create': bgp_peer.CreatePeer,
+    'bgp-peer-update': bgp_peer.UpdatePeer,
+    'bgp-peer-delete': bgp_peer.DeletePeer,
+    'net-ip-availability-list': network_ip_availability.ListIpAvailability,
+    'net-ip-availability-show': network_ip_availability.ShowIpAvailability,
+    'tag-add': tag.AddTag,
+    'tag-replace': tag.ReplaceTag,
+    'tag-remove': tag.RemoveTag,
 }
 
 COMMANDS = {'2.0': COMMAND_V2}
@@ -727,9 +787,9 @@ class NeutronShell(app.App):
         options = set()
         for option, _action in self.parser._option_string_actions.items():
             options.add(option)
-        for command_name, command in self.command_manager:
-            commands.add(command_name)
-            cmd_factory = command.load()
+        for _name, _command in self.command_manager:
+            commands.add(_name)
+            cmd_factory = _command.load()
             cmd = cmd_factory(self, None)
             cmd_parser = cmd.get_parser('')
             for option, _action in cmd_parser._option_string_actions.items():
@@ -838,11 +898,22 @@ class NeutronShell(app.App):
             cloud=self.options.os_cloud, argparse=self.options,
             network_api_version=self.api_version)
         verify, cert = cloud_config.get_requests_verify_args()
-        auth = cloud_config.get_auth()
 
-        auth_session = session.Session(
-            auth=auth, verify=verify, cert=cert,
-            timeout=self.options.http_timeout)
+        # TODO(singhj): Remove dependancy on HTTPClient
+        # for the case of token-endpoint authentication
+
+        # When using token-endpoint authentication legacy
+        # HTTPClient will be used, otherwise SessionClient
+        # will be used.
+        if self.options.os_token and self.options.os_url:
+            auth = None
+            auth_session = None
+        else:
+            auth = cloud_config.get_auth()
+
+            auth_session = session.Session(
+                auth=auth, verify=verify, cert=cert,
+                timeout=self.options.http_timeout)
 
         interface = self.options.os_endpoint_type or self.endpoint_type
         if interface.endswith('URL'):
@@ -851,6 +922,8 @@ class NeutronShell(app.App):
             retries=self.options.retries,
             raise_errors=False,
             session=auth_session,
+            url=self.options.os_url,
+            token=self.options.os_token,
             region_name=cloud_config.get_region_name(),
             api_version=cloud_config.get_api_version('network'),
             service_type=cloud_config.get_service_type('network'),

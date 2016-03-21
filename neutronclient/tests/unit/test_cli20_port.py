@@ -338,6 +338,20 @@ class CLITestV20PortJSON(test_cli20.CLITestV20Base):
         self._test_create_resource(resource, cmd, name, myid, args,
                                    position_names, position_values)
 
+    def test_create_port_with_dns_name(self):
+        # Create port: --dns-name my-port.
+        resource = 'port'
+        cmd = port.CreatePort(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+        netid = 'netid'
+        dns_name_name = 'my-port'
+        args = [netid, '--dns-name', dns_name_name]
+        position_names = ['network_id', 'dns_name']
+        position_values = [netid, dns_name_name]
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values)
+
     def test_create_port_with_allowed_address_pair_ipaddr(self):
         # Create port:
         # --allowed-address-pair ip_address=addr0
@@ -589,13 +603,14 @@ class CLITestV20PortJSON(test_cli20.CLITestV20Base):
         resource = 'port'
         cmd = port.UpdatePort(test_cli20.MyApp(sys.stdout), None)
         myid = 'myid'
-        net_id = 'net_id'
+        subnet_id = 'subnet_id'
         ip_addr = '123.123.123.123'
         args = [myid,
-                '--fixed-ip', "network_id=%(net_id)s,ip_address=%(ip_addr)s" %
-                {'net_id': net_id,
+                '--fixed-ip',
+                "subnet_id=%(subnet_id)s,ip_address=%(ip_addr)s" %
+                {'subnet_id': subnet_id,
                  'ip_addr': ip_addr}]
-        updated_fields = {"fixed_ips": [{'network_id': net_id,
+        updated_fields = {"fixed_ips": [{'subnet_id': subnet_id,
                                          'ip_address': ip_addr}]}
         self._test_update_resource(resource, cmd, myid, args, updated_fields)
 
@@ -647,6 +662,22 @@ class CLITestV20PortJSON(test_cli20.CLITestV20Base):
         self._test_update_resource(resource, cmd, 'myid',
                                    ['myid', '--no-qos-policy'],
                                    {'qos_policy_id': None, })
+
+    def test_update_port_with_dns_name(self):
+        # Update port: myid --dns-name my-port.
+        resource = 'port'
+        cmd = port.UpdatePort(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--dns-name', 'my-port'],
+                                   {'dns_name': 'my-port', })
+
+    def test_update_port_with_no_dns_name(self):
+        # Update port: myid --no-dns-name
+        resource = 'port'
+        cmd = port.UpdatePort(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--no-dns-name'],
+                                   {'dns_name': "", })
 
     def test_delete_extra_dhcp_opts_from_port(self):
         resource = 'port'

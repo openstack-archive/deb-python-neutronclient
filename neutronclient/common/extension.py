@@ -31,56 +31,56 @@ class NeutronClientExtension(neutronV20.NeutronCommand):
 
 
 class ClientExtensionShow(NeutronClientExtension, neutronV20.ShowCommand):
-    def get_data(self, parsed_args):
+    def take_action(self, parsed_args):
         # NOTE(mdietz): Calls 'execute' to provide a consistent pattern
         #               for any implementers adding extensions with
         #               regard to any other extension verb.
         return self.execute(parsed_args)
 
     def execute(self, parsed_args):
-        return super(ClientExtensionShow, self).get_data(parsed_args)
+        return super(ClientExtensionShow, self).take_action(parsed_args)
 
 
 class ClientExtensionList(NeutronClientExtension, neutronV20.ListCommand):
 
-    def get_data(self, parsed_args):
+    def take_action(self, parsed_args):
         # NOTE(mdietz): Calls 'execute' to provide a consistent pattern
         #               for any implementers adding extensions with
         #               regard to any other extension verb.
         return self.execute(parsed_args)
 
     def execute(self, parsed_args):
-        return super(ClientExtensionList, self).get_data(parsed_args)
+        return super(ClientExtensionList, self).take_action(parsed_args)
 
 
 class ClientExtensionDelete(NeutronClientExtension, neutronV20.DeleteCommand):
-    def run(self, parsed_args):
+    def take_action(self, parsed_args):
         # NOTE(mdietz): Calls 'execute' to provide a consistent pattern
         #               for any implementers adding extensions with
         #               regard to any other extension verb.
         return self.execute(parsed_args)
 
     def execute(self, parsed_args):
-        return super(ClientExtensionDelete, self).run(parsed_args)
+        return super(ClientExtensionDelete, self).take_action(parsed_args)
 
 
 class ClientExtensionCreate(NeutronClientExtension, neutronV20.CreateCommand):
-    def get_data(self, parsed_args):
+    def take_action(self, parsed_args):
         # NOTE(mdietz): Calls 'execute' to provide a consistent pattern
         #               for any implementers adding extensions with
         #               regard to any other extension verb.
         return self.execute(parsed_args)
 
     def execute(self, parsed_args):
-        return super(ClientExtensionCreate, self).get_data(parsed_args)
+        return super(ClientExtensionCreate, self).take_action(parsed_args)
 
 
 class ClientExtensionUpdate(NeutronClientExtension, neutronV20.UpdateCommand):
-    def run(self, parsed_args):
+    def take_action(self, parsed_args):
         # NOTE(mdietz): Calls 'execute' to provide a consistent pattern
         #               for any implementers adding extensions with
         #               regard to any other extension verb.
         return self.execute(parsed_args)
 
     def execute(self, parsed_args):
-        return super(ClientExtensionUpdate, self).run(parsed_args)
+        return super(ClientExtensionUpdate, self).take_action(parsed_args)

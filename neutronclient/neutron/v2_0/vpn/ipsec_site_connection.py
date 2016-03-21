@@ -46,6 +46,7 @@ class ShowIPsecSiteConnection(neutronv20.ShowCommand):
     """Show information of a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
+    help_resource = 'IPsec site connection'
 
 
 class IPsecSiteConnectionMixin(object):
@@ -54,7 +55,8 @@ class IPsecSiteConnectionMixin(object):
         parser.add_argument(
             '--dpd',
             metavar="action=ACTION,interval=INTERVAL,timeout=TIMEOUT",
-            type=utils.str2dict,
+            type=utils.str2dict_type(
+                optional_keys=['action', 'interval', 'timeout']),
             help=vpn_utils.dpd_help("IPsec connection."))
         parser.add_argument(
             '--local-ep-group',
@@ -196,9 +198,11 @@ class UpdateIPsecSiteConnection(IPsecSiteConnectionMixin,
     """Update a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
+    help_resource = 'IPsec site connection'
 
 
 class DeleteIPsecSiteConnection(neutronv20.DeleteCommand):
     """Delete a given IPsec site connection."""
 
     resource = 'ipsec_site_connection'
+    help_resource = 'IPsec site connection'

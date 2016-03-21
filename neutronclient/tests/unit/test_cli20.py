@@ -37,6 +37,7 @@ API_VERSION = "2.0"
 FORMAT = 'json'
 TOKEN = 'testtoken'
 ENDURL = 'localurl'
+REQUEST_ID = 'test_request_id'
 
 
 @contextlib.contextmanager
@@ -65,7 +66,7 @@ class FakeStdout(object):
         return result
 
 
-class MyResp(object):
+class MyResp(requests.Response):
     def __init__(self, status_code, headers=None, reason=None):
         self.status_code = status_code
         self.headers = headers or {}
@@ -557,6 +558,81 @@ class CLITestV20Base(base.BaseTestCase):
         self.assertIn(myid, _str)
 
 
+class TestListCommand(neutronV2_0.ListCommand):
+    resource = 'test_resource'
+    filter_attrs = [
+        'name',
+        'admin_state_up',
+        {'name': 'foo', 'help': 'non-boolean attribute foo'},
+        {'name': 'bar', 'help': 'boolean attribute bar',
+         'boolean': True},
+        {'name': 'baz', 'help': 'integer attribute baz',
+         'argparse_kwargs': {'choices': ['baz1', 'baz2']}},
+    ]
+
+
+class ListCommandTestCase(CLITestV20Base):
+
+    def setUp(self):
+        super(ListCommandTestCase, self).setUp()
+        self.client.extend_list('test_resources', '/test_resources', None)
+        setattr(self.client, 'test_resources_path', '/test_resources')
+
+    def _test_list_resources_filter_params(self, base_args='', query=''):
+        resources = 'test_resources'
+        cmd = TestListCommand(MyApp(sys.stdout), None)
+        self._test_list_resources(resources, cmd,
+                                  base_args=base_args.split(),
+                                  query=query)
+
+    def _test_list_resources_with_arg_error(self, base_args=''):
+        self.addCleanup(self.mox.UnsetStubs)
+        resources = 'test_resources'
+        cmd = TestListCommand(MyApp(sys.stdout), None)
+        # argparse parse error leads to SystemExit
+        self.assertRaises(SystemExit,
+                          self._test_list_resources,
+                          resources, cmd,
+                          base_args=base_args.split())
+
+    def test_list_resources_without_filter(self):
+        self._test_list_resources_filter_params()
+
+    def test_list_resources_use_default_filter(self):
+        self._test_list_resources_filter_params(
+            base_args='--name val1 --admin-state-up False',
+            query='name=val1&admin_state_up=False')
+
+    def test_list_resources_use_custom_filter(self):
+        self._test_list_resources_filter_params(
+            base_args='--foo FOO --bar True',
+            query='foo=FOO&bar=True')
+
+    def test_list_resources_boolean_check_default_filter(self):
+        self._test_list_resources_filter_params(
+            base_args='--admin-state-up True', query='admin_state_up=True')
+        self._test_list_resources_filter_params(
+            base_args='--admin-state-up False', query='admin_state_up=False')
+        self._test_list_resources_with_arg_error(
+            base_args='--admin-state-up non-true-false')
+
+    def test_list_resources_boolean_check_custom_filter(self):
+        self._test_list_resources_filter_params(
+            base_args='--bar True', query='bar=True')
+        self._test_list_resources_filter_params(
+            base_args='--bar False', query='bar=False')
+        self._test_list_resources_with_arg_error(
+            base_args='--bar non-true-false')
+
+    def test_list_resources_argparse_kwargs(self):
+        self._test_list_resources_filter_params(
+            base_args='--baz baz1', query='baz=baz1')
+        self._test_list_resources_filter_params(
+            base_args='--baz baz2', query='baz=baz2')
+        self._test_list_resources_with_arg_error(
+            base_args='--bar non-choice')
+
+
 class ClientV2TestJson(CLITestV20Base):
     def test_do_request_unicode(self):
         self.mox.StubOutWithMock(self.client.httpclient, "request")
@@ -573,41 +649,46 @@ class ClientV2TestJson(CLITestV20Base):
         self.client.httpclient.auth_token = encodeutils.safe_encode(
             unicode_text)
         expected_auth_token = encodeutils.safe_encode(unicode_text)
+        resp_headers = {'x-openstack-request-id': REQUEST_ID}
 
         self.client.httpclient.request(
             end_url(expected_action, query=expect_query, format=self.format),
             'PUT', body=expect_body,
             headers=mox.ContainsKeyValue(
                 'X-Auth-Token',
-                expected_auth_token)).AndReturn((MyResp(200), expect_body))
+                expected_auth_token)).AndReturn((MyResp(200, resp_headers),
+                                                 expect_body))
 
         self.mox.ReplayAll()
-        res_body = self.client.do_request('PUT', action, body=body,
-                                          params=params)
+        result = self.client.do_request('PUT', action, body=body,
+                                        params=params)
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
         # test response with unicode
-        self.assertEqual(body, res_body)
+        self.assertEqual(body, result)
 
     def test_do_request_error_without_response_body(self):
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         params = {'test': 'value'}
         expect_query = six.moves.urllib.parse.urlencode(params)
         self.client.httpclient.auth_token = 'token'
+        resp_headers = {'x-openstack-request-id': REQUEST_ID}
 
         self.client.httpclient.request(
             MyUrlComparator(end_url(
                 '/test', query=expect_query, format=self.format), self.client),
             'PUT', body='',
             headers=mox.ContainsKeyValue('X-Auth-Token', 'token')
-        ).AndReturn((MyResp(400, reason='An error'), ''))
+        ).AndReturn((MyResp(400, headers=resp_headers, reason='An error'), ''))
 
         self.mox.ReplayAll()
         error = self.assertRaises(exceptions.NeutronClientException,
                                   self.client.do_request, 'PUT', '/test',
                                   body='', params=params)
-        self.assertEqual("An error", str(error))
+        expected_error = "An error\nNeutron server returns " \
+                         "request_ids: %s" % [REQUEST_ID]
+        self.assertEqual(expected_error, str(error))
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
@@ -622,22 +703,129 @@ class ClientV2TestJson(CLITestV20Base):
         else:
             self.fail('Expected exception NOT raised')
 
+    def test_do_request_request_ids(self):
+        self.mox.StubOutWithMock(self.client.httpclient, "request")
+        params = {'test': 'value'}
+        expect_query = six.moves.urllib.parse.urlencode(params)
+        self.client.httpclient.auth_token = 'token'
+        body = params
+        expect_body = self.client.serialize(body)
+        resp_headers = {'x-openstack-request-id': REQUEST_ID}
+        self.client.httpclient.request(
+            MyUrlComparator(end_url(
+                '/test', query=expect_query,
+                format=self.format), self.client),
+            'PUT', body=expect_body,
+            headers=mox.ContainsKeyValue('X-Auth-Token', 'token')
+        ).AndReturn((MyResp(200, resp_headers), expect_body))
+
+        self.mox.ReplayAll()
+        result = self.client.do_request('PUT', '/test', body=body,
+                                        params=params)
+        self.mox.VerifyAll()
+        self.mox.UnsetStubs()
+
+        self.assertEqual(body, result)
+        self.assertEqual([REQUEST_ID], result.request_ids)
+
+    def test_list_request_ids_with_retrieve_all_true(self):
+        self.mox.StubOutWithMock(self.client.httpclient, "request")
+
+        path = '/test'
+        resources = 'tests'
+        fake_query = "marker=myid2&limit=2"
+        reses1 = {resources: [{'id': 'myid1', },
+                              {'id': 'myid2', }],
+                  '%s_links' % resources: [{'href': end_url(path, fake_query),
+                                            'rel': 'next'}]}
+        reses2 = {resources: [{'id': 'myid3', },
+                              {'id': 'myid4', }]}
+        resstr1 = self.client.serialize(reses1)
+        resstr2 = self.client.serialize(reses2)
+        resp_headers = {'x-openstack-request-id': REQUEST_ID}
+        self.client.httpclient.request(
+            end_url(path, "", format=self.format), 'GET',
+            body=None,
+            headers=mox.ContainsKeyValue(
+                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200, resp_headers),
+                                                   resstr1))
+        self.client.httpclient.request(
+            MyUrlComparator(end_url(path, fake_query, format=self.format),
+                            self.client), 'GET',
+            body=None,
+            headers=mox.ContainsKeyValue(
+                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200, resp_headers),
+                                                   resstr2))
+        self.mox.ReplayAll()
+        result = self.client.list(resources, path)
+
+        self.mox.VerifyAll()
+        self.mox.UnsetStubs()
+
+        self.assertEqual([REQUEST_ID, REQUEST_ID], result.request_ids)
+
+    def test_list_request_ids_with_retrieve_all_false(self):
+        self.mox.StubOutWithMock(self.client.httpclient, "request")
+
+        path = '/test'
+        resources = 'tests'
+        fake_query = "marker=myid2&limit=2"
+        reses1 = {resources: [{'id': 'myid1', },
+                              {'id': 'myid2', }],
+                  '%s_links' % resources: [{'href': end_url(path, fake_query),
+                                            'rel': 'next'}]}
+        reses2 = {resources: [{'id': 'myid3', },
+                              {'id': 'myid4', }]}
+        resstr1 = self.client.serialize(reses1)
+        resstr2 = self.client.serialize(reses2)
+        resp_headers = {'x-openstack-request-id': REQUEST_ID}
+        self.client.httpclient.request(
+            end_url(path, "", format=self.format), 'GET',
+            body=None,
+            headers=mox.ContainsKeyValue(
+                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200, resp_headers),
+                                                   resstr1))
+        self.client.httpclient.request(
+            MyUrlComparator(end_url(path, fake_query, format=self.format),
+                            self.client), 'GET',
+            body=None,
+            headers=mox.ContainsKeyValue(
+                'X-Auth-Token', TOKEN)).AndReturn((MyResp(200, resp_headers),
+                                                   resstr2))
+        self.mox.ReplayAll()
+        result = self.client.list(resources, path, retrieve_all=False)
+        next(result)
+        self.assertEqual([REQUEST_ID], result.request_ids)
+        next(result)
+        self.assertEqual([REQUEST_ID, REQUEST_ID], result.request_ids)
+        self.mox.VerifyAll()
+        self.mox.UnsetStubs()
+
 
 class CLITestV20ExceptionHandler(CLITestV20Base):
 
     def _test_exception_handler_v20(
             self, expected_exception, status_code, expected_msg,
             error_type=None, error_msg=None, error_detail=None,
-            error_content=None):
+            request_id=None, error_content=None):
+
+        resp = MyResp(status_code, {'x-openstack-request-id': request_id})
+        if request_id is not None:
+            expected_msg += "\nNeutron server returns " \
+                            "request_ids: %s" % [request_id]
         if error_content is None:
             error_content = {'NeutronError': {'type': error_type,
                                               'message': error_msg,
                                               'detail': error_detail}}
+        expected_content = self.client._convert_into_with_meta(error_content,
+                                                               resp)
 
         e = self.assertRaises(expected_exception,
                               client.exception_handler_v20,
-                              status_code, error_content)
+                              status_code, expected_content)
         self.assertEqual(status_code, e.status_code)
+        self.assertEqual(expected_exception.__name__,
+                         e.__class__.__name__)
 
         if expected_msg is None:
             if error_detail:
@@ -651,7 +839,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
                    'fake-network-uuid. The IP address fake-ip is in use.')
         self._test_exception_handler_v20(
             exceptions.IpAddressInUseClient, 409, err_msg,
-            'IpAddressInUse', err_msg, '')
+            'IpAddressInUse', err_msg, '', REQUEST_ID)
 
     def test_exception_handler_v20_neutron_known_error(self):
         known_error_map = [
@@ -677,7 +865,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
             self._test_exception_handler_v20(
                 client_exc, status_code,
                 error_msg + '\n' + error_detail,
-                server_exc, error_msg, error_detail)
+                server_exc, error_msg, error_detail, REQUEST_ID)
 
     def test_exception_handler_v20_neutron_known_error_without_detail(self):
         error_msg = 'Network not found'
@@ -685,7 +873,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
         self._test_exception_handler_v20(
             exceptions.NetworkNotFoundClient, 404,
             error_msg,
-            'NetworkNotFound', error_msg, error_detail)
+            'NetworkNotFound', error_msg, error_detail, REQUEST_ID)
 
     def test_exception_handler_v20_unknown_error_to_per_code_exception(self):
         for status_code, client_exc in exceptions.HTTP_EXCEPTION_MAP.items():
@@ -694,7 +882,7 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
             self._test_exception_handler_v20(
                 client_exc, status_code,
                 error_msg + '\n' + error_detail,
-                'UnknownError', error_msg, error_detail)
+                'UnknownError', error_msg, error_detail, [REQUEST_ID])
 
     def test_exception_handler_v20_neutron_unknown_status_code(self):
         error_msg = 'Unknown error'
@@ -702,36 +890,44 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
         self._test_exception_handler_v20(
             exceptions.NeutronClientException, 501,
             error_msg + '\n' + error_detail,
-            'UnknownError', error_msg, error_detail)
+            'UnknownError', error_msg, error_detail, REQUEST_ID)
 
     def test_exception_handler_v20_bad_neutron_error(self):
-        error_content = {'NeutronError': {'unknown_key': 'UNKNOWN'}}
-        self._test_exception_handler_v20(
-            exceptions.NeutronClientException, 500,
-            expected_msg={'unknown_key': 'UNKNOWN'},
-            error_content=error_content)
+        for status_code, client_exc in exceptions.HTTP_EXCEPTION_MAP.items():
+            error_content = {'NeutronError': {'unknown_key': 'UNKNOWN'}}
+            self._test_exception_handler_v20(
+                client_exc, status_code,
+                expected_msg="{'unknown_key': 'UNKNOWN'}",
+                error_content=error_content,
+                request_id=REQUEST_ID)
 
     def test_exception_handler_v20_error_dict_contains_message(self):
         error_content = {'message': 'This is an error message'}
-        self._test_exception_handler_v20(
-            exceptions.NeutronClientException, 500,
-            expected_msg='This is an error message',
-            error_content=error_content)
+        for status_code, client_exc in exceptions.HTTP_EXCEPTION_MAP.items():
+            self._test_exception_handler_v20(
+                client_exc, status_code,
+                expected_msg='This is an error message',
+                error_content=error_content,
+                request_id=REQUEST_ID)
 
     def test_exception_handler_v20_error_dict_not_contain_message(self):
+        # 599 is not contained in HTTP_EXCEPTION_MAP.
         error_content = {'error': 'This is an error message'}
-        expected_msg = '%s-%s' % (500, error_content)
+        expected_msg = '%s-%s' % (599, error_content)
         self._test_exception_handler_v20(
-            exceptions.NeutronClientException, 500,
+            exceptions.NeutronClientException, 599,
             expected_msg=expected_msg,
+            request_id=None,
             error_content=error_content)
 
     def test_exception_handler_v20_default_fallback(self):
+        # 599 is not contained in HTTP_EXCEPTION_MAP.
         error_content = 'This is an error message'
-        expected_msg = '%s-%s' % (500, error_content)
+        expected_msg = '%s-%s' % (599, error_content)
         self._test_exception_handler_v20(
-            exceptions.NeutronClientException, 500,
+            exceptions.NeutronClientException, 599,
             expected_msg=expected_msg,
+            request_id=None,
             error_content=error_content)
 
     def test_exception_status(self):
@@ -767,3 +963,60 @@ class CLITestV20ExceptionHandler(CLITestV20Base):
         self.assertIsNotNone(error.status_code)
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
+
+
+class DictWithMetaTest(base.BaseTestCase):
+
+    def test_dict_with_meta(self):
+        body = {'test': 'value'}
+        resp = MyResp(200, {'x-openstack-request-id': REQUEST_ID})
+        obj = client._DictWithMeta(body, resp)
+        self.assertEqual(body, obj)
+
+        # Check request_ids attribute is added to obj
+        self.assertTrue(hasattr(obj, 'request_ids'))
+        self.assertEqual([REQUEST_ID], obj.request_ids)
+
+
+class TupleWithMetaTest(base.BaseTestCase):
+
+    def test_tuple_with_meta(self):
+        body = ('test', 'value')
+        resp = MyResp(200, {'x-openstack-request-id': REQUEST_ID})
+        obj = client._TupleWithMeta(body, resp)
+        self.assertEqual(body, obj)
+
+        # Check request_ids attribute is added to obj
+        self.assertTrue(hasattr(obj, 'request_ids'))
+        self.assertEqual([REQUEST_ID], obj.request_ids)
+
+
+class StrWithMetaTest(base.BaseTestCase):
+
+    def test_str_with_meta(self):
+        body = "test_string"
+        resp = MyResp(200, {'x-openstack-request-id': REQUEST_ID})
+        obj = client._StrWithMeta(body, resp)
+        self.assertEqual(body, obj)
+
+        # Check request_ids attribute is added to obj
+        self.assertTrue(hasattr(obj, 'request_ids'))
+        self.assertEqual([REQUEST_ID], obj.request_ids)
+
+
+class GeneratorWithMetaTest(base.BaseTestCase):
+
+    body = {'test': 'value'}
+    resp = MyResp(200, {'x-openstack-request-id': REQUEST_ID})
+
+    def _pagination(self, collection, path, **params):
+        obj = client._DictWithMeta(self.body, self.resp)
+        yield obj
+
+    def test_generator(self):
+        obj = client._GeneratorWithMeta(self._pagination, 'test_collection',
+                                        'test_path', test_args='test_args')
+        self.assertEqual(self.body, next(obj))
+
+        self.assertTrue(hasattr(obj, 'request_ids'))
+        self.assertEqual([REQUEST_ID], obj.request_ids)

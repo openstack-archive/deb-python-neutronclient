@@ -15,7 +15,15 @@
 #
 
 from neutronclient._i18n import _
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV20
+
+
+def _format_prefixes(subnetpool):
+    try:
+        return '\n'.join(pool for pool in subnetpool['prefixes'])
+    except (TypeError, KeyError):
+        return subnetpool['prefixes']
 
 
 def add_updatable_arguments(parser):
@@ -32,20 +40,25 @@ def add_updatable_arguments(parser):
         '--pool-prefix',
         action='append', dest='prefixes',
         help=_('Subnetpool prefixes (This option can be repeated).'))
+    utils.add_boolean_argument(
+        parser, '--is-default',
+        help=_('Specify whether this should be the default subnetpool '
+               '(True meaning default).'))
 
 
 def updatable_args2body(parsed_args, body, for_create=True):
     neutronV20.update_dict(parsed_args, body,
                            ['name', 'prefixes', 'default_prefixlen',
-                            'min_prefixlen', 'max_prefixlen'])
+                            'min_prefixlen', 'max_prefixlen', 'is_default'])
 
 
 class ListSubnetPool(neutronV20.ListCommand):
     """List subnetpools that belong to a given tenant."""
 
+    _formatters = {'prefixes': _format_prefixes, }
     resource = 'subnetpool'
     list_columns = ['id', 'name', 'prefixes',
-                    'default_prefixlen', 'address_scope_id']
+                    'default_prefixlen', 'address_scope_id', 'is_default']
     pagination_support = True
     sorting_support = True
 
@@ -69,6 +82,7 @@ class CreateSubnetPool(neutronV20.CreateCommand):
             help=_('Set the subnetpool as shared.'))
         parser.add_argument(
             'name',
+            metavar='NAME',
             help=_('Name of subnetpool to create.'))
         parser.add_argument(
             '--address-scope',

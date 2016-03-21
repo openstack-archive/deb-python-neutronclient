@@ -21,6 +21,7 @@ from neutronclient.common import exceptions
 from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV20
 from neutronclient.neutron.v2_0 import availability_zone
+from neutronclient.neutron.v2_0 import dns
 from neutronclient.neutron.v2_0.qos import policy as qos_policy
 
 
@@ -43,6 +44,44 @@ class ListNetwork(neutronV20.ListCommand):
     list_columns = ['id', 'name', 'subnets']
     pagination_support = True
     sorting_support = True
+
+    filter_attrs = [
+        'tenant_id',
+        'name',
+        'admin_state_up',
+        {'name': 'status',
+         'help': _("Filter %s according to their operation status."
+                   "(For example: ACTIVE, ERROR etc)"),
+         'boolean': False,
+         'argparse_kwargs': {'type': utils.convert_to_uppercase}},
+        {'name': 'shared',
+         'help': _('Filter and list the networks which are shared.'),
+         'boolean': True},
+        {'name': 'router:external',
+         'help': _('Filter and list the networks which are external.'),
+         'boolean': True},
+        {'name': 'tags',
+         'help': _("Filter and list %s which has all given tags. "
+                   "Multiple tags can be set like --tags <tag[,tag...]>"),
+         'boolean': False,
+         'argparse_kwargs': {'metavar': 'TAG'}},
+        {'name': 'tags_any',
+         'help': _("Filter and list %s which has any given tags. "
+                   "Multiple tags can be set like --tags-any <tag[,tag...]>"),
+         'boolean': False,
+         'argparse_kwargs': {'metavar': 'TAG'}},
+        {'name': 'not_tags',
+         'help': _("Filter and list %s which does not have all given tags. "
+                   "Multiple tags can be set like --not-tags <tag[,tag...]>"),
+         'boolean': False,
+         'argparse_kwargs': {'metavar': 'TAG'}},
+        {'name': 'not_tags_any',
+         'help': _("Filter and list %s which does not have any given tags. "
+                   "Multiple tags can be set like --not-tags-any "
+                   "<tag[,tag...]>"),
+         'boolean': False,
+         'argparse_kwargs': {'metavar': 'TAG'}},
+    ]
 
     def extend_list(self, data, parsed_args):
         """Add subnet information to a network list."""
@@ -148,6 +187,7 @@ class CreateNetwork(neutronV20.CreateCommand, qos_policy.CreateQosPolicyMixin):
 
         self.add_arguments_qos_policy(parser)
         availability_zone.add_az_hint_argument(parser, self.resource)
+        dns.add_dns_argument_create(parser, self.resource, 'domain')
 
     def args2body(self, parsed_args):
         body = {'name': parsed_args.name,
@@ -161,6 +201,7 @@ class CreateNetwork(neutronV20.CreateCommand, qos_policy.CreateQosPolicyMixin):
 
         self.args2body_qos_policy(parsed_args, body)
         availability_zone.args2body_az_hint(parsed_args, body)
+        dns.args2body_dns_create(parsed_args, body, 'domain')
 
         return {'network': body}
 
@@ -178,8 +219,10 @@ class UpdateNetwork(neutronV20.UpdateCommand, qos_policy.UpdateQosPolicyMixin):
 
     def add_known_arguments(self, parser):
         self.add_arguments_qos_policy(parser)
+        dns.add_dns_argument_update(parser, self.resource, 'domain')
 
     def args2body(self, parsed_args):
         body = {}
         self.args2body_qos_policy(parsed_args, body)
+        dns.args2body_dns_update(parsed_args, body, 'domain')
         return {'network': body}

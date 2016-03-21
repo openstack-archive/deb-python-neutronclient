@@ -163,6 +163,19 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         self._test_create_resource(resource, cmd, name, myid, args,
                                    position_names, position_values)
 
+    def test_create_network_with_dns_domain(self):
+        # Create net: --dns-domain my-domain.org.
+        resource = 'network'
+        cmd = network.CreateNetwork(test_cli20.MyApp(sys.stdout), None)
+        name = 'myname'
+        myid = 'myid'
+        dns_domain_name = 'my-domain.org.'
+        args = [name, '--dns-domain', dns_domain_name]
+        position_names = ['name', 'dns_domain']
+        position_values = [name, dns_domain_name]
+        self._test_create_resource(resource, cmd, name, myid, args,
+                                   position_names, position_values)
+
     def test_list_nets_empty_with_column(self):
         resources = "networks"
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
@@ -196,13 +209,15 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
 
     def _test_list_networks(self, cmd, detail=False, tags=(),
                             fields_1=(), fields_2=(), page_size=None,
-                            sort_key=(), sort_dir=()):
+                            sort_key=(), sort_dir=(), base_args=None,
+                            query=''):
         resources = "networks"
         self.mox.StubOutWithMock(network.ListNetwork, "extend_list")
         network.ListNetwork.extend_list(mox.IsA(list), mox.IgnoreArg())
         self._test_list_resources(resources, cmd, detail, tags,
                                   fields_1, fields_2, page_size=page_size,
-                                  sort_key=sort_key, sort_dir=sort_dir)
+                                  sort_key=sort_key, sort_dir=sort_dir,
+                                  base_args=base_args, query=query)
 
     def test_list_nets_pagination(self):
         cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
@@ -288,7 +303,7 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
         args = []
         cmd_parser = cmd.get_parser('list_networks')
         parsed_args = cmd_parser.parse_args(args)
-        result = cmd.get_data(parsed_args)
+        result = cmd.take_action(parsed_args)
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
         _result = [x for x in result[1]]
@@ -526,6 +541,22 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                                    ['myid', '--no-qos-policy'],
                                    {'qos_policy_id': None, })
 
+    def test_update_network_with_dns_domain(self):
+        # Update net: myid --dns-domain my-domain.org.
+        resource = 'network'
+        cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--dns-domain', 'my-domain.org.'],
+                                   {'dns_domain': 'my-domain.org.', })
+
+    def test_update_network_with_no_dns_domain(self):
+        # Update net: myid --no-dns-domain
+        resource = 'network'
+        cmd = network.UpdateNetwork(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--no-dns-domain'],
+                                   {'dns_domain': "", })
+
     def test_show_network(self):
         # Show net: --fields id --fields name myid.
         resource = 'network'
@@ -611,3 +642,9 @@ class CLITestV20NetworkJSON(test_cli20.CLITestV20Base):
                         'X-Auth-Token', test_cli20.TOKEN)).AndReturn(response)
 
         self._test_extend_list(mox_calls)
+
+    def test_list_shared_networks(self):
+        # list nets : --shared False
+        cmd = network.ListNetwork(test_cli20.MyApp(sys.stdout), None)
+        self._test_list_networks(cmd, base_args='--shared False'.split(),
+                                 query='shared=False')
