@@ -28,11 +28,12 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
         cmd = router.CreateRouter(test_cli20.MyApp(sys.stdout), None)
         name = 'router1'
         myid = 'myid'
-        args = [name, ]
+        args = [name, '--description', 'rooter']
         position_names = ['name', ]
         position_values = [name, ]
         self._test_create_resource(resource, cmd, name, myid, args,
-                                   position_names, position_values)
+                                   position_names, position_values,
+                                   description='rooter')
 
     def test_create_router_tenant(self):
         # Create router: --tenant_id tenantid myname.
@@ -163,9 +164,9 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
         resource = 'router'
         cmd = router.UpdateRouter(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
-                                   ['myid', '--name', 'myname'],
-                                   {'name': 'myname'}
-                                   )
+                                   ['myid', '--name', 'myname',
+                                    '--description', ':D'],
+                                   {'name': 'myname', 'description': ':D'})
 
     def test_update_router_admin_state(self):
         # Update router: myid --admin-state-up <True|False>.
@@ -259,13 +260,10 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                 '--no-routes',
                 '--route',
                 'destination=10.0.3.0/24,nexthop=10.0.0.10']
-        actual_error_code = 0
-        try:
-            self._test_update_resource(resource, cmd, myid, args, None)
-        except SystemExit:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            actual_error_code = exc_value.code
-        self.assertEqual(2, actual_error_code)
+        exception = self.assertRaises(SystemExit,
+                                      self._test_update_resource,
+                                      resource, cmd, myid, args, None)
+        self.assertEqual(2, exception.code)
 
     def test_delete_router(self):
         # Delete router: myid.

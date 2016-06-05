@@ -173,8 +173,8 @@ class ListSecurityGroupRule(neutronV20.ListCommand):
     replace_rules = {'security_group_id': 'security_group',
                      'remote_group_id': 'remote_group'}
     digest_fields = {
-        # The entry 'protocol/port' is leaving deliberetely for keep
-        # compatibility,
+        # The entry 'protocol/port' is left deliberately for backwards
+        # compatibility.
         'remote': {
             'method': _get_remote,
             'depends_on': ['remote_ip_prefix', 'remote_group_id']},
@@ -258,8 +258,8 @@ class ListSecurityGroupRule(neutronV20.ListCommand):
                      for sg in secgroups if sg['name']])
 
     @staticmethod
-    def _has_fileds(rule, required_fileds):
-        return all([key in rule for key in required_fileds])
+    def _has_fields(rule, required_fields):
+        return all([key in rule for key in required_fields])
 
     def extend_list(self, data, parsed_args):
         sg_dict = self._get_sg_name_dict(data, parsed_args.page_size,
@@ -270,7 +270,7 @@ class ListSecurityGroupRule(neutronV20.ListCommand):
                 if key in rule:
                     rule[key] = sg_dict.get(rule[key], rule[key])
             for field, digest_rule in self.digest_fields.items():
-                if self._has_fileds(rule, digest_rule['depends_on']):
+                if self._has_fields(rule, digest_rule['depends_on']):
                     rule[field] = digest_rule['method'](rule) or 'any'
 
     def setup_columns(self, info, parsed_args):
@@ -305,6 +305,9 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
     resource = 'security_group_rule'
 
     def add_known_arguments(self, parser):
+        parser.add_argument(
+            '--description',
+            help=_('Description of security group rule.'))
         parser.add_argument(
             'security_group_id', metavar='SECURITY_GROUP',
             help=_('Security group name or ID to add rule.'))
@@ -354,7 +357,8 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
                 generate_default_ethertype(parsed_args.protocol)}
         neutronV20.update_dict(parsed_args, body,
                                ['protocol', 'port_range_min', 'port_range_max',
-                                'remote_ip_prefix', 'tenant_id'])
+                                'remote_ip_prefix', 'tenant_id',
+                                'description'])
         if parsed_args.remote_group_id:
             _remote_group_id = neutronV20.find_resourceid_by_name_or_id(
                 self.get_client(), 'security_group',
