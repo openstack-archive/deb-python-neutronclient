@@ -1,0 +1,10 @@
+Code-Review+2: Doug Wiegley <dougwig@parkside.io>
+Code-Review+1: vikram.choudhary <vikram.choudhary@huawei.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 25 Aug 2016 21:04:10 +0000
+Reviewed-on: https://review.openstack.org/357803
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/stable/mitaka

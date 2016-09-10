@@ -1,0 +1,15 @@
+Code-Review+2: Brian Haley <brian.haley@hpe.com>
+Code-Review+1: Rawlin Peters <rawlin.peters@hpe.com>
+Code-Review+1: Ryan Tidwell <ryan.tidwell@hpe.com>
+Code-Review+1: vikram.choudhary <vikram.choudhary@huawei.com>
+Code-Review+1: Reedip <reedip.banerjee@nectechnologies.in>
+Code-Review+1: Hirofumi Ichihara <ichihara.hirofumi@lab.ntt.co.jp>
+Code-Review+1: Akihiro Motoki <amotoki@gmail.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 26 Aug 2016 16:24:46 +0000
+Reviewed-on: https://review.openstack.org/356862
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/stable/mitaka
