@@ -20,7 +20,6 @@ import abc
 import argparse
 import functools
 import logging
-import re
 
 from cliff import command
 from cliff import lister
@@ -32,104 +31,26 @@ from neutronclient._i18n import _
 from neutronclient.common import exceptions
 from neutronclient.common import utils
 
-HEX_ELEM = '[0-9A-Fa-f]'
-UUID_PATTERN = '-'.join([HEX_ELEM + '{8}', HEX_ELEM + '{4}',
-                         HEX_ELEM + '{4}', HEX_ELEM + '{4}',
-                         HEX_ELEM + '{12}'])
 HYPHEN_OPTS = ['tags_any', 'not_tags', 'not_tags_any']
-
-
-def _get_resource_plural(resource, client):
-    plurals = getattr(client, 'EXTED_PLURALS', [])
-    for k in plurals:
-        if plurals[k] == resource:
-            return k
-    return resource + 's'
 
 
 def find_resource_by_id(client, resource, resource_id, cmd_resource=None,
                         parent_id=None, fields=None):
-    if not cmd_resource:
-        cmd_resource = resource
-    cmd_resource_plural = _get_resource_plural(cmd_resource, client)
-    resource_plural = _get_resource_plural(resource, client)
-    obj_lister = getattr(client, "list_%s" % cmd_resource_plural)
-    # perform search by id only if we are passing a valid UUID
-    match = re.match(UUID_PATTERN, resource_id)
-    collection = resource_plural
-    if match:
-        params = {'id': resource_id}
-        if fields:
-            params['fields'] = fields
-        if parent_id:
-            data = obj_lister(parent_id, **params)
-        else:
-            data = obj_lister(**params)
-        if data and data[collection]:
-            return data[collection][0]
-    not_found_message = (_("Unable to find %(resource)s with id "
-                           "'%(id)s'") %
-                         {'resource': resource, 'id': resource_id})
-    # 404 is raised by exceptions.NotFound to simulate serverside behavior
-    raise exceptions.NotFound(message=not_found_message)
+    return client.find_resource_by_id(resource, resource_id, cmd_resource,
+                                      parent_id, fields)
 
 
 def find_resourceid_by_id(client, resource, resource_id, cmd_resource=None,
                           parent_id=None):
-    info = find_resource_by_id(client, resource, resource_id, cmd_resource,
-                               parent_id, fields='id')
-    return info['id']
-
-
-def _find_resource_by_name(client, resource, name, project_id=None,
-                           cmd_resource=None, parent_id=None, fields=None):
-    if not cmd_resource:
-        cmd_resource = resource
-    cmd_resource_plural = _get_resource_plural(cmd_resource, client)
-    resource_plural = _get_resource_plural(resource, client)
-    obj_lister = getattr(client, "list_%s" % cmd_resource_plural)
-    params = {'name': name}
-    if fields:
-        params['fields'] = fields
-    if project_id:
-        params['tenant_id'] = project_id
-    if parent_id:
-        data = obj_lister(parent_id, **params)
-    else:
-        data = obj_lister(**params)
-    collection = resource_plural
-    info = data[collection]
-    if len(info) > 1:
-        raise exceptions.NeutronClientNoUniqueMatch(resource=resource,
-                                                    name=name)
-    elif len(info) == 0:
-        not_found_message = (_("Unable to find %(resource)s with name "
-                               "'%(name)s'") %
-                             {'resource': resource, 'name': name})
-        # 404 is raised by exceptions.NotFound to simulate serverside behavior
-        raise exceptions.NotFound(message=not_found_message)
-    else:
-        return info[0]
+    return find_resource_by_id(client, resource, resource_id, cmd_resource,
+                               parent_id, fields='id')['id']
 
 
 def find_resource_by_name_or_id(client, resource, name_or_id,
                                 project_id=None, cmd_resource=None,
                                 parent_id=None, fields=None):
-    try:
-        return find_resource_by_id(client, resource, name_or_id,
-                                   cmd_resource, parent_id, fields)
-    except exceptions.NotFound:
-        try:
-            return _find_resource_by_name(client, resource, name_or_id,
-                                          project_id, cmd_resource, parent_id,
-                                          fields)
-        except exceptions.NotFound:
-            not_found_message = (_("Unable to find %(resource)s with name "
-                                   "or id '%(name_or_id)s'") %
-                                 {'resource': resource,
-                                  'name_or_id': name_or_id})
-            raise exceptions.NotFound(
-                message=not_found_message)
+    return client.find_resource(resource, name_or_id, project_id,
+                                cmd_resource, parent_id, fields)
 
 
 def find_resourceid_by_name_or_id(client, resource, name_or_id,
@@ -557,17 +478,19 @@ class DeleteCommand(NeutronCommand):
     log = None
     allow_names = True
     help_resource = None
+    bulk_delete = True
 
     def get_parser(self, prog_name):
         parser = super(DeleteCommand, self).get_parser(prog_name)
-        if self.allow_names:
-            help_str = _('ID or name of %s to delete.')
-        else:
-            help_str = _('ID of %s to delete.')
         if not self.help_resource:
             self.help_resource = self.resource
+        if self.allow_names:
+            help_str = _('ID(s) or name(s) of %s to delete.')
+        else:
+            help_str = _('ID(s) of %s to delete.')
         parser.add_argument(
             'id', metavar=self.resource.upper(),
+            nargs='+' if self.bulk_delete else 1,
             help=help_str % self.help_resource)
         self.add_known_arguments(parser)
         return parser
@@ -577,24 +500,62 @@ class DeleteCommand(NeutronCommand):
         neutron_client = self.get_client()
         obj_deleter = getattr(neutron_client,
                               "delete_%s" % self.cmd_resource)
+
+        if self.bulk_delete:
+            self._bulk_delete(obj_deleter, neutron_client, parsed_args.id)
+        else:
+            self.delete_item(obj_deleter, neutron_client, parsed_args.id)
+            print((_('Deleted %(resource)s: %(id)s')
+                   % {'id': parsed_args.id,
+                      'resource': self.resource}),
+                  file=self.app.stdout)
+        return
+
+    def _bulk_delete(self, obj_deleter, neutron_client, parsed_args_ids):
+        successful_delete = []
+        non_existent = []
+        multiple_ids = []
+        for item_id in parsed_args_ids:
+            try:
+                self.delete_item(obj_deleter, neutron_client, item_id)
+                successful_delete.append(item_id)
+            except exceptions.NotFound:
+                non_existent.append(item_id)
+            except exceptions.NeutronClientNoUniqueMatch:
+                multiple_ids.append(item_id)
+        if successful_delete:
+            print((_('Deleted %(resource)s(s): %(id)s'))
+                  % {'id': ", ".join(successful_delete),
+                     'resource': self.cmd_resource},
+                  file=self.app.stdout)
+        if non_existent:
+            print((_("Unable to find %(resource)s(s) with id(s) "
+                     "'%(id)s'") %
+                  {'resource': self.cmd_resource,
+                   'id': ", ".join(non_existent)}),
+                  file=self.app.stdout)
+        if multiple_ids:
+            print((_("Multiple %(resource)s(s) matches found for name(s)"
+                     " '%(id)s'. Please use an ID to be more specific.")) %
+                  {'resource': self.cmd_resource,
+                   'id': ", ".join(multiple_ids)},
+                  file=self.app.stdout)
+
+    def delete_item(self, obj_deleter, neutron_client, item_id):
         if self.allow_names:
             params = {'cmd_resource': self.cmd_resource,
                       'parent_id': self.parent_id}
             _id = find_resourceid_by_name_or_id(neutron_client,
                                                 self.resource,
-                                                parsed_args.id,
+                                                item_id,
                                                 **params)
         else:
-            _id = parsed_args.id
+            _id = item_id
 
         if self.parent_id:
             obj_deleter(_id, self.parent_id)
         else:
             obj_deleter(_id)
-        print((_('Deleted %(resource)s: %(id)s')
-               % {'id': parsed_args.id,
-                  'resource': self.resource}),
-              file=self.app.stdout)
         return
 
 
@@ -695,8 +656,7 @@ class ListCommand(NeutronCommand, lister.Lister):
         return search_opts
 
     def call_server(self, neutron_client, search_opts, parsed_args):
-        resource_plural = _get_resource_plural(self.cmd_resource,
-                                               neutron_client)
+        resource_plural = neutron_client.get_resource_plural(self.cmd_resource)
         obj_lister = getattr(neutron_client, "list_%s" % resource_plural)
         if self.parent_id:
             data = obj_lister(self.parent_id, **search_opts)
@@ -729,7 +689,7 @@ class ListCommand(NeutronCommand, lister.Lister):
             if dirs:
                 search_opts.update({'sort_dir': dirs})
         data = self.call_server(neutron_client, search_opts, parsed_args)
-        collection = _get_resource_plural(self.resource, neutron_client)
+        collection = neutron_client.get_resource_plural(self.resource)
         return data.get(collection, [])
 
     def extend_list(self, data, parsed_args):

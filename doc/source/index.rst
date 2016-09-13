@@ -35,6 +35,7 @@ Using neutronclient
 
    usage/cli
    usage/library
+   usage/osc_cli_plugins
 
 Developer Guide
 ---------------

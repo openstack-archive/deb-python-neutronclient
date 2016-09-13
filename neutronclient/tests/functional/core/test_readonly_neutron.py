@@ -12,7 +12,7 @@
 
 import re
 
-from tempest_lib import exceptions
+from tempest.lib import exceptions
 
 from neutronclient.tests.functional import base
 
@@ -69,25 +69,6 @@ class SimpleReadOnlyNeutronClientTest(base.ClientTestBase):
     def test_neutron_meter_label_rule_list(self):
         self.neutron('meter-label-rule-list')
 
-    def _test_neutron_lbaas_command(self, command):
-        try:
-            self.neutron(command)
-        except exceptions.CommandFailed as e:
-            if '404 Not Found' not in e.stderr:
-                self.fail('%s: Unexpected failure.' % command)
-
-    def test_neutron_lb_healthmonitor_list(self):
-        self._test_neutron_lbaas_command('lb-healthmonitor-list')
-
-    def test_neutron_lb_member_list(self):
-        self._test_neutron_lbaas_command('lb-member-list')
-
-    def test_neutron_lb_pool_list(self):
-        self._test_neutron_lbaas_command('lb-pool-list')
-
-    def test_neutron_lb_vip_list(self):
-        self._test_neutron_lbaas_command('lb-vip-list')
-
     def test_neutron_net_external_list(self):
         net_ext_list = self.parser.listing(self.neutron('net-external-list'))
         self.assertTableStruct(net_ext_list, ['id', 'name', 'subnets'])
@@ -121,25 +102,6 @@ class SimpleReadOnlyNeutronClientTest(base.ClientTestBase):
         subnet_list = self.parser.listing(self.neutron('subnet-list'))
         self.assertTableStruct(subnet_list, ['id', 'name', 'cidr',
                                              'allocation_pools'])
-
-    def test_neutron_firewall_list(self):
-        firewall_list = self.parser.listing(self.neutron
-                                            ('firewall-list'))
-        self.assertTableStruct(firewall_list, ['id', 'name',
-                                               'firewall_policy_id'])
-
-    def test_neutron_firewall_policy_list(self):
-        firewall_policy = self.parser.listing(self.neutron
-                                              ('firewall-policy-list'))
-        self.assertTableStruct(firewall_policy, ['id', 'name',
-                                                 'firewall_rules'])
-
-    def test_neutron_firewall_rule_list(self):
-        firewall_rule = self.parser.listing(self.neutron
-                                            ('firewall-rule-list'))
-        self.assertTableStruct(firewall_rule, ['id', 'name',
-                                               'firewall_policy_id',
-                                               'summary', 'enabled'])
 
     def test_neutron_help(self):
         help_text = self.neutron('help')

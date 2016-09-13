@@ -18,6 +18,7 @@ import argparse
 
 from neutronclient._i18n import _
 from neutronclient.common import exceptions
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV20
 
 
@@ -123,10 +124,10 @@ class CreateSecurityGroup(neutronV20.CreateCommand):
     def add_known_arguments(self, parser):
         parser.add_argument(
             'name', metavar='NAME',
-            help=_('Name of security group.'))
+            help=_('Name of the security group to be created.'))
         parser.add_argument(
             '--description',
-            help=_('Description of security group.'))
+            help=_('Description of the security group to be created.'))
 
     def args2body(self, parsed_args):
         body = {'name': parsed_args.name}
@@ -150,10 +151,10 @@ class UpdateSecurityGroup(neutronV20.UpdateCommand):
     def add_known_arguments(self, parser):
         parser.add_argument(
             '--name',
-            help=_('Name of security group.'))
+            help=_('Updated name of the security group.'))
         parser.add_argument(
             '--description',
-            help=_('Description of security group.'))
+            help=_('Updated description of the security group.'))
 
     def args2body(self, parsed_args):
         body = {}
@@ -310,9 +311,11 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
             help=_('Description of security group rule.'))
         parser.add_argument(
             'security_group_id', metavar='SECURITY_GROUP',
-            help=_('Security group name or ID to add rule.'))
+            help=_('ID or name of the security group to '
+                   'which the rule is added.'))
         parser.add_argument(
             '--direction',
+            type=utils.convert_to_lowercase,
             default='ingress', choices=['ingress', 'egress'],
             help=_('Direction of traffic: ingress/egress.'))
         parser.add_argument(
@@ -320,9 +323,10 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
             help=_('IPv4/IPv6'))
         parser.add_argument(
             '--protocol',
+            type=utils.convert_to_lowercase,
             help=_('Protocol of packet. Allowed values are '
                    '[icmp, icmpv6, tcp, udp] and '
-                   'integer representations [0-255]'))
+                   'integer representations [0-255].'))
         parser.add_argument(
             '--port-range-min',
             help=_('Starting port range. For ICMP it is type.'))
@@ -343,7 +347,8 @@ class CreateSecurityGroupRule(neutronV20.CreateCommand):
             help=argparse.SUPPRESS)
         parser.add_argument(
             '--remote-group-id', metavar='REMOTE_GROUP',
-            help=_('Remote security group name or ID to apply rule.'))
+            help=_('ID or name of the remote security group '
+                   'to which the rule is applied.'))
         parser.add_argument(
             '--remote_group_id',
             help=argparse.SUPPRESS)

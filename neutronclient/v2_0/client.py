@@ -18,8 +18,10 @@
 import inspect
 import itertools
 import logging
+import re
 import time
 
+import debtcollector.renames
 import requests
 import six.moves.urllib.parse as urlparse
 from six import string_types
@@ -33,6 +35,11 @@ from neutronclient.common import utils
 
 
 _logger = logging.getLogger(__name__)
+
+HEX_ELEM = '[0-9A-Fa-f]'
+UUID_PATTERN = '-'.join([HEX_ELEM + '{8}', HEX_ELEM + '{4}',
+                         HEX_ELEM + '{4}', HEX_ELEM + '{4}',
+                         HEX_ELEM + '{12}'])
 
 
 def exception_handler_v20(status_code, error_content):
@@ -111,6 +118,13 @@ class _RequestIdMixin(object):
             # Extract 'x-openstack-request-id' from headers if
             # response is a Response object.
             request_id = resp.headers.get('x-openstack-request-id')
+            # log request-id for each api call
+            _logger.debug('%(method)s call to neutron for '
+                          '%(url)s used request id '
+                          '%(response_request_id)s',
+                          {'method': resp.request.method,
+                           'url': resp.url,
+                           'response_request_id': request_id})
         else:
             # If resp is of type string.
             request_id = resp
@@ -184,8 +198,10 @@ class ClientBase(object):
     :param string user_id: User ID for authentication. (optional)
     :param string password: Password for authentication. (optional)
     :param string token: Token for authentication. (optional)
-    :param string tenant_name: Tenant name. (optional)
-    :param string tenant_id: Tenant id. (optional)
+    :param string tenant_name: DEPRECATED! Use project_name instead.
+    :param string project_name: Project name. (optional)
+    :param string tenant_id: DEPRECATED! Use project_id instead.
+    :param string project_id: Project id. (optional)
     :param string auth_strategy: 'keystone' by default, 'noauth' for no
                                  authentication against keystone. (optional)
     :param string auth_url: Keystone service endpoint for authorization.
@@ -220,7 +236,7 @@ class ClientBase(object):
         from neutronclient.v2_0 import client
         neutron = client.Client(username=USER,
                                 password=PASS,
-                                tenant_name=TENANT_NAME,
+                                project_name=PROJECT_NAME,
                                 auth_url=KEYSTONE_URL)
 
         nets = neutron.list_networks()
@@ -231,6 +247,8 @@ class ClientBase(object):
     # This variable should be overridden by a child class.
     EXTED_PLURALS = {}
 
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
     def __init__(self, **kwargs):
         """Initialize a new client for the Neutron v2.0 API."""
         super(ClientBase, self).__init__()
@@ -257,7 +275,7 @@ class ClientBase(object):
         exception_handler_v20(status_code, error_body)
 
     def do_request(self, method, action, body=None, headers=None, params=None):
-        # Add format and tenant_id
+        # Add format and project_id
         action += ".%s" % self.format
         action = self.action_prefix + action
         if isinstance(params, dict) and params:
@@ -391,6 +409,88 @@ class ClientBase(object):
         else:
             return _TupleWithMeta((), resp)
 
+    def get_resource_plural(self, resource):
+        for k in self.EXTED_PLURALS:
+            if self.EXTED_PLURALS[k] == resource:
+                return k
+        return resource + 's'
+
+    def find_resource_by_id(self, resource, resource_id, cmd_resource=None,
+                            parent_id=None, fields=None):
+        if not cmd_resource:
+            cmd_resource = resource
+        cmd_resource_plural = self.get_resource_plural(cmd_resource)
+        resource_plural = self.get_resource_plural(resource)
+        # TODO(amotoki): Use show_%s instead of list_%s
+        obj_lister = getattr(self, "list_%s" % cmd_resource_plural)
+        # perform search by id only if we are passing a valid UUID
+        match = re.match(UUID_PATTERN, resource_id)
+        collection = resource_plural
+        if match:
+            params = {'id': resource_id}
+            if fields:
+                params['fields'] = fields
+            if parent_id:
+                data = obj_lister(parent_id, **params)
+            else:
+                data = obj_lister(**params)
+            if data and data[collection]:
+                return data[collection][0]
+        not_found_message = (_("Unable to find %(resource)s with id "
+                               "'%(id)s'") %
+                             {'resource': resource, 'id': resource_id})
+        # 404 is raised by exceptions.NotFound to simulate serverside behavior
+        raise exceptions.NotFound(message=not_found_message)
+
+    def _find_resource_by_name(self, resource, name, project_id=None,
+                               cmd_resource=None, parent_id=None, fields=None):
+        if not cmd_resource:
+            cmd_resource = resource
+        cmd_resource_plural = self.get_resource_plural(cmd_resource)
+        resource_plural = self.get_resource_plural(resource)
+        obj_lister = getattr(self, "list_%s" % cmd_resource_plural)
+        params = {'name': name}
+        if fields:
+            params['fields'] = fields
+        if project_id:
+            params['tenant_id'] = project_id
+        if parent_id:
+            data = obj_lister(parent_id, **params)
+        else:
+            data = obj_lister(**params)
+        collection = resource_plural
+        info = data[collection]
+        if len(info) > 1:
+            raise exceptions.NeutronClientNoUniqueMatch(resource=resource,
+                                                        name=name)
+        elif len(info) == 0:
+            not_found_message = (_("Unable to find %(resource)s with name "
+                                   "'%(name)s'") %
+                                 {'resource': resource, 'name': name})
+            # 404 is raised by exceptions.NotFound
+            # to simulate serverside behavior
+            raise exceptions.NotFound(message=not_found_message)
+        else:
+            return info[0]
+
+    def find_resource(self, resource, name_or_id, project_id=None,
+                      cmd_resource=None, parent_id=None, fields=None):
+        try:
+            return self.find_resource_by_id(resource, name_or_id,
+                                            cmd_resource, parent_id, fields)
+        except exceptions.NotFound:
+            try:
+                return self._find_resource_by_name(
+                    resource, name_or_id, project_id,
+                    cmd_resource, parent_id, fields)
+            except exceptions.NotFound:
+                not_found_message = (_("Unable to find %(resource)s with name "
+                                       "or id '%(name_or_id)s'") %
+                                     {'resource': resource,
+                                      'name_or_id': name_or_id})
+                raise exceptions.NotFound(
+                    message=not_found_message)
+
 
 class Client(ClientBase):
 
@@ -406,6 +506,7 @@ class Client(ClientBase):
     address_scope_path = "/address-scopes/%s"
     quotas_path = "/quotas"
     quota_path = "/quotas/%s"
+    quota_default_path = "/quotas/%s/default"
     extensions_path = "/extensions"
     extension_path = "/extensions/%s"
     routers_path = "/routers"
@@ -494,6 +595,10 @@ class Client(ClientBase):
     qos_bandwidth_limit_rule_path = "/qos/policies/%s/bandwidth_limit_rules/%s"
     qos_dscp_marking_rules_path = "/qos/policies/%s/dscp_marking_rules"
     qos_dscp_marking_rule_path = "/qos/policies/%s/dscp_marking_rules/%s"
+    qos_minimum_bandwidth_rules_path = \
+        "/qos/policies/%s/minimum_bandwidth_rules"
+    qos_minimum_bandwidth_rule_path = \
+        "/qos/policies/%s/minimum_bandwidth_rules/%s"
     qos_rule_types_path = "/qos/rule-types"
     qos_rule_type_path = "/qos/rule-types/%s"
     flavors_path = "/flavors"
@@ -516,6 +621,11 @@ class Client(ClientBase):
     network_ip_availability_path = '/network-ip-availabilities/%s'
     tags_path = "/%s/%s/tags"
     tag_path = "/%s/%s/tags/%s"
+    trunks_path = "/trunks"
+    trunk_path = "/trunks/%s"
+    subports_path = "/trunks/%s/get_subports"
+    subports_add_path = "/trunks/%s/add_subports"
+    subports_remove_path = "/trunks/%s/remove_subports"
 
     # API has no way to report plurals, so we have to hard code them
     EXTED_PLURALS = {'routers': 'router',
@@ -554,6 +664,7 @@ class Client(ClientBase):
                      'qos_policies': 'qos_policy',
                      'policies': 'policy',
                      'bandwidth_limit_rules': 'bandwidth_limit_rule',
+                     'minimum_bandwidth_rules': 'minimum_bandwidth_rule',
                      'rules': 'rule',
                      'dscp_marking_rules': 'dscp_marking_rule',
                      'rule_types': 'rule_type',
@@ -561,6 +672,7 @@ class Client(ClientBase):
                      'bgp_speakers': 'bgp_speaker',
                      'bgp_peers': 'bgp_peer',
                      'network_ip_availabilities': 'network_ip_availability',
+                     'trunks': 'trunk',
                      }
 
     def list_ext(self, collection, path, retrieve_all, **_params):
@@ -584,24 +696,36 @@ class Client(ClientBase):
         return self.delete(path % id)
 
     def get_quotas_tenant(self, **_params):
-        """Fetch tenant info for following quota operation."""
+        """Fetch project info for following quota operation."""
         return self.get(self.quota_path % 'tenant', params=_params)
 
     def list_quotas(self, **_params):
-        """Fetch all tenants' quotas."""
+        """Fetch all projects' quotas."""
         return self.get(self.quotas_path, params=_params)
 
-    def show_quota(self, tenant_id, **_params):
-        """Fetch information of a certain tenant's quotas."""
-        return self.get(self.quota_path % (tenant_id), params=_params)
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def show_quota(self, project_id, **_params):
+        """Fetch information of a certain project's quotas."""
+        return self.get(self.quota_path % (project_id), params=_params)
 
-    def update_quota(self, tenant_id, body=None):
-        """Update a tenant's quotas."""
-        return self.put(self.quota_path % (tenant_id), body=body)
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def show_quota_default(self, project_id, **_params):
+        """Fetch information of a certain project's default quotas."""
+        return self.get(self.quota_default_path % (project_id), params=_params)
 
-    def delete_quota(self, tenant_id):
-        """Delete the specified tenant's quota values."""
-        return self.delete(self.quota_path % (tenant_id))
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def update_quota(self, project_id, body=None):
+        """Update a project's quotas."""
+        return self.put(self.quota_path % (project_id), body=body)
+
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def delete_quota(self, project_id):
+        """Delete the specified project's quota values."""
+        return self.delete(self.quota_path % (project_id))
 
     def list_extensions(self, **_params):
         """Fetch a list of all extensions on server side."""
@@ -612,7 +736,7 @@ class Client(ClientBase):
         return self.get(self.extension_path % ext_alias, params=_params)
 
     def list_ports(self, retrieve_all=True, **_params):
-        """Fetches a list of all ports for a tenant."""
+        """Fetches a list of all ports for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('ports', self.ports_path, retrieve_all,
                          **_params)
@@ -634,7 +758,7 @@ class Client(ClientBase):
         return self.delete(self.port_path % (port))
 
     def list_networks(self, retrieve_all=True, **_params):
-        """Fetches a list of all networks for a tenant."""
+        """Fetches a list of all networks for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('networks', self.networks_path, retrieve_all,
                          **_params)
@@ -656,7 +780,7 @@ class Client(ClientBase):
         return self.delete(self.network_path % (network))
 
     def list_subnets(self, retrieve_all=True, **_params):
-        """Fetches a list of all subnets for a tenant."""
+        """Fetches a list of all subnets for a project."""
         return self.list('subnets', self.subnets_path, retrieve_all,
                          **_params)
 
@@ -677,7 +801,7 @@ class Client(ClientBase):
         return self.delete(self.subnet_path % (subnet))
 
     def list_subnetpools(self, retrieve_all=True, **_params):
-        """Fetches a list of all subnetpools for a tenant."""
+        """Fetches a list of all subnetpools for a project."""
         return self.list('subnetpools', self.subnetpools_path, retrieve_all,
                          **_params)
 
@@ -698,7 +822,7 @@ class Client(ClientBase):
         return self.delete(self.subnetpool_path % (subnetpool))
 
     def list_routers(self, retrieve_all=True, **_params):
-        """Fetches a list of all routers for a tenant."""
+        """Fetches a list of all routers for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('routers', self.routers_path, retrieve_all,
                          **_params)
@@ -720,7 +844,7 @@ class Client(ClientBase):
         return self.delete(self.router_path % (router))
 
     def list_address_scopes(self, retrieve_all=True, **_params):
-        """Fetches a list of all address scopes for a tenant."""
+        """Fetches a list of all address scopes for a project."""
         return self.list('address_scopes', self.address_scopes_path,
                          retrieve_all, **_params)
 
@@ -762,7 +886,7 @@ class Client(ClientBase):
                         body={'router': {'external_gateway_info': {}}})
 
     def list_floatingips(self, retrieve_all=True, **_params):
-        """Fetches a list of all floatingips for a tenant."""
+        """Fetches a list of all floatingips for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('floatingips', self.floatingips_path, retrieve_all,
                          **_params)
@@ -793,7 +917,7 @@ class Client(ClientBase):
                         security_group, body=body)
 
     def list_security_groups(self, retrieve_all=True, **_params):
-        """Fetches a list of all security groups for a tenant."""
+        """Fetches a list of all security groups for a project."""
         return self.list('security_groups', self.security_groups_path,
                          retrieve_all, **_params)
 
@@ -816,7 +940,7 @@ class Client(ClientBase):
                            (security_group_rule))
 
     def list_security_group_rules(self, retrieve_all=True, **_params):
-        """Fetches a list of all security group rules for a tenant."""
+        """Fetches a list of all security group rules for a project."""
         return self.list('security_group_rules',
                          self.security_group_rules_path,
                          retrieve_all, **_params)
@@ -827,7 +951,7 @@ class Client(ClientBase):
                         params=_params)
 
     def list_endpoint_groups(self, retrieve_all=True, **_params):
-        """Fetches a list of all VPN endpoint groups for a tenant."""
+        """Fetches a list of all VPN endpoint groups for a project."""
         return self.list('endpoint_groups', self.endpoint_groups_path,
                          retrieve_all, **_params)
 
@@ -849,7 +973,7 @@ class Client(ClientBase):
         return self.delete(self.endpoint_group_path % endpoint_group)
 
     def list_vpnservices(self, retrieve_all=True, **_params):
-        """Fetches a list of all configured VPN services for a tenant."""
+        """Fetches a list of all configured VPN services for a project."""
         return self.list('vpnservices', self.vpnservices_path, retrieve_all,
                          **_params)
 
@@ -870,7 +994,7 @@ class Client(ClientBase):
         return self.delete(self.vpnservice_path % (vpnservice))
 
     def list_ipsec_site_connections(self, retrieve_all=True, **_params):
-        """Fetches all configured IPsecSiteConnections for a tenant."""
+        """Fetches all configured IPsecSiteConnections for a project."""
         return self.list('ipsec_site_connections',
                          self.ipsec_site_connections_path,
                          retrieve_all,
@@ -897,7 +1021,7 @@ class Client(ClientBase):
         return self.delete(self.ipsec_site_connection_path % (ipsecsite_conn))
 
     def list_ikepolicies(self, retrieve_all=True, **_params):
-        """Fetches a list of all configured IKEPolicies for a tenant."""
+        """Fetches a list of all configured IKEPolicies for a project."""
         return self.list('ikepolicies', self.ikepolicies_path, retrieve_all,
                          **_params)
 
@@ -918,7 +1042,7 @@ class Client(ClientBase):
         return self.delete(self.ikepolicy_path % (ikepolicy))
 
     def list_ipsecpolicies(self, retrieve_all=True, **_params):
-        """Fetches a list of all configured IPsecPolicies for a tenant."""
+        """Fetches a list of all configured IPsecPolicies for a project."""
         return self.list('ipsecpolicies',
                          self.ipsecpolicies_path,
                          retrieve_all,
@@ -941,7 +1065,7 @@ class Client(ClientBase):
         return self.delete(self.ipsecpolicy_path % (ipsecpolicy))
 
     def list_loadbalancers(self, retrieve_all=True, **_params):
-        """Fetches a list of all loadbalancers for a tenant."""
+        """Fetches a list of all loadbalancers for a project."""
         return self.list('loadbalancers', self.lbaas_loadbalancers_path,
                          retrieve_all, **_params)
 
@@ -975,7 +1099,7 @@ class Client(ClientBase):
                         params=_params)
 
     def list_listeners(self, retrieve_all=True, **_params):
-        """Fetches a list of all lbaas_listeners for a tenant."""
+        """Fetches a list of all lbaas_listeners for a project."""
         return self.list('listeners', self.lbaas_listeners_path,
                          retrieve_all, **_params)
 
@@ -1044,7 +1168,7 @@ class Client(ClientBase):
         return self.delete(self.lbaas_l7rule_path % (l7policy, l7rule))
 
     def list_lbaas_pools(self, retrieve_all=True, **_params):
-        """Fetches a list of all lbaas_pools for a tenant."""
+        """Fetches a list of all lbaas_pools for a project."""
         return self.list('pools', self.lbaas_pools_path,
                          retrieve_all, **_params)
 
@@ -1067,7 +1191,7 @@ class Client(ClientBase):
         return self.delete(self.lbaas_pool_path % (lbaas_pool))
 
     def list_lbaas_healthmonitors(self, retrieve_all=True, **_params):
-        """Fetches a list of all lbaas_healthmonitors for a tenant."""
+        """Fetches a list of all lbaas_healthmonitors for a project."""
         return self.list('healthmonitors', self.lbaas_healthmonitors_path,
                          retrieve_all, **_params)
 
@@ -1091,12 +1215,12 @@ class Client(ClientBase):
                            (lbaas_healthmonitor))
 
     def list_lbaas_loadbalancers(self, retrieve_all=True, **_params):
-        """Fetches a list of all lbaas_loadbalancers for a tenant."""
+        """Fetches a list of all lbaas_loadbalancers for a project."""
         return self.list('loadbalancers', self.lbaas_loadbalancers_path,
                          retrieve_all, **_params)
 
     def list_lbaas_members(self, lbaas_pool, retrieve_all=True, **_params):
-        """Fetches a list of all lbaas_members for a tenant."""
+        """Fetches a list of all lbaas_members for a project."""
         return self.list('members', self.lbaas_members_path % lbaas_pool,
                          retrieve_all, **_params)
 
@@ -1106,11 +1230,11 @@ class Client(ClientBase):
                         params=_params)
 
     def create_lbaas_member(self, lbaas_pool, body=None):
-        """Creates an lbaas_member."""
+        """Creates a lbaas_member."""
         return self.post(self.lbaas_members_path % lbaas_pool, body=body)
 
     def update_lbaas_member(self, lbaas_member, lbaas_pool, body=None):
-        """Updates a lbaas_healthmonitor."""
+        """Updates a lbaas_member."""
         return self.put(self.lbaas_member_path % (lbaas_pool, lbaas_member),
                         body=body)
 
@@ -1119,7 +1243,7 @@ class Client(ClientBase):
         return self.delete(self.lbaas_member_path % (lbaas_pool, lbaas_member))
 
     def list_vips(self, retrieve_all=True, **_params):
-        """Fetches a list of all load balancer vips for a tenant."""
+        """Fetches a list of all load balancer vips for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('vips', self.vips_path, retrieve_all,
                          **_params)
@@ -1141,7 +1265,7 @@ class Client(ClientBase):
         return self.delete(self.vip_path % (vip))
 
     def list_pools(self, retrieve_all=True, **_params):
-        """Fetches a list of all load balancer pools for a tenant."""
+        """Fetches a list of all load balancer pools for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('pools', self.pools_path, retrieve_all,
                          **_params)
@@ -1167,7 +1291,7 @@ class Client(ClientBase):
         return self.get(self.pool_path_stats % (pool), params=_params)
 
     def list_members(self, retrieve_all=True, **_params):
-        """Fetches a list of all load balancer members for a tenant."""
+        """Fetches a list of all load balancer members for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('members', self.members_path, retrieve_all,
                          **_params)
@@ -1189,7 +1313,9 @@ class Client(ClientBase):
         return self.delete(self.member_path % (member))
 
     def list_health_monitors(self, retrieve_all=True, **_params):
-        """Fetches a list of all load balancer health monitors for a tenant."""
+        """Fetches a list of all load balancer health monitors for a project.
+
+        """
         # Pass filters in "params" argument to do_request
         return self.list('health_monitors', self.health_monitors_path,
                          retrieve_all, **_params)
@@ -1227,7 +1353,7 @@ class Client(ClientBase):
         return self.post(self.qos_queues_path, body=body)
 
     def list_qos_queues(self, **_params):
-        """Fetches a list of all queues for a tenant."""
+        """Fetches a list of all queues for a project."""
         return self.get(self.qos_queues_path, params=_params)
 
     def show_qos_queue(self, queue, **_params):
@@ -1364,7 +1490,7 @@ class Client(ClientBase):
                         % bgp_dragent, params=_params)
 
     def list_firewall_rules(self, retrieve_all=True, **_params):
-        """Fetches a list of all firewall rules for a tenant."""
+        """Fetches a list of all firewall rules for a project."""
         # Pass filters in "params" argument to do_request
 
         return self.list('firewall_rules', self.firewall_rules_path,
@@ -1388,7 +1514,7 @@ class Client(ClientBase):
         return self.delete(self.firewall_rule_path % (firewall_rule))
 
     def list_firewall_policies(self, retrieve_all=True, **_params):
-        """Fetches a list of all firewall policies for a tenant."""
+        """Fetches a list of all firewall policies for a project."""
         # Pass filters in "params" argument to do_request
 
         return self.list('firewall_policies', self.firewall_policies_path,
@@ -1423,7 +1549,7 @@ class Client(ClientBase):
                         body=body)
 
     def list_firewalls(self, retrieve_all=True, **_params):
-        """Fetches a list of all firewalls for a tenant."""
+        """Fetches a list of all firewalls for a project."""
         # Pass filters in "params" argument to do_request
 
         return self.list('firewalls', self.firewalls_path, retrieve_all,
@@ -1486,7 +1612,7 @@ class Client(ClientBase):
         return self.delete(self.metering_label_path % (label))
 
     def list_metering_labels(self, retrieve_all=True, **_params):
-        """Fetches a list of all metering labels for a tenant."""
+        """Fetches a list of all metering labels for a project."""
         return self.list('metering_labels', self.metering_labels_path,
                          retrieve_all, **_params)
 
@@ -1523,7 +1649,7 @@ class Client(ClientBase):
         return self.put(self.rbac_policy_path % rbac_policy_id, body=body)
 
     def list_rbac_policies(self, retrieve_all=True, **_params):
-        """Fetch a list of all RBAC policies for a tenant."""
+        """Fetch a list of all RBAC policies for a project."""
         return self.list('rbac_policies', self.rbac_policies_path,
                          retrieve_all, **_params)
 
@@ -1537,7 +1663,7 @@ class Client(ClientBase):
         return self.delete(self.rbac_policy_path % rbac_policy_id)
 
     def list_qos_policies(self, retrieve_all=True, **_params):
-        """Fetches a list of all qos policies for a tenant."""
+        """Fetches a list of all qos policies for a project."""
         # Pass filters in "params" argument to do_request
         return self.list('policies', self.qos_policies_path,
                          retrieve_all, **_params)
@@ -1572,10 +1698,10 @@ class Client(ClientBase):
                          self.qos_bandwidth_limit_rules_path % policy_id,
                          retrieve_all, **_params)
 
-    def show_bandwidth_limit_rule(self, rule, policy, body=None):
+    def show_bandwidth_limit_rule(self, rule, policy, **_params):
         """Fetches information of a certain bandwidth limit rule."""
         return self.get(self.qos_bandwidth_limit_rule_path %
-                        (policy, rule), body=body)
+                        (policy, rule), params=_params)
 
     def create_bandwidth_limit_rule(self, policy, body=None):
         """Creates a new bandwidth limit rule."""
@@ -1599,10 +1725,10 @@ class Client(ClientBase):
                          self.qos_dscp_marking_rules_path % policy_id,
                          retrieve_all, **_params)
 
-    def show_dscp_marking_rule(self, rule, policy, body=None):
+    def show_dscp_marking_rule(self, rule, policy, **_params):
         """Shows information of a certain DSCP marking rule."""
         return self.get(self.qos_dscp_marking_rule_path %
-                        (policy, rule), body=body)
+                        (policy, rule), params=_params)
 
     def create_dscp_marking_rule(self, policy, body=None):
         """Creates a new DSCP marking rule."""
@@ -1619,6 +1745,35 @@ class Client(ClientBase):
         return self.delete(self.qos_dscp_marking_rule_path %
                            (policy, rule))
 
+    def list_minimum_bandwidth_rules(self, policy_id, retrieve_all=True,
+                                     **_params):
+        """Fetches a list of all minimum bandwidth rules for the given policy.
+
+        """
+        return self.list('qos_minimum_bandwidth_rules',
+                         self.qos_minimum_bandwidth_rules_path %
+                         policy_id, retrieve_all, **_params)
+
+    def show_minimum_bandwidth_rule(self, rule, policy, body=None):
+        """Fetches information of a certain minimum bandwidth rule."""
+        return self.get(self.qos_minimum_bandwidth_rule_path %
+                        (policy, rule), body=body)
+
+    def create_minimum_bandwidth_rule(self, policy, body=None):
+        """Creates a new minimum bandwidth rule."""
+        return self.post(self.qos_minimum_bandwidth_rules_path % policy,
+                         body=body)
+
+    def update_minimum_bandwidth_rule(self, rule, policy, body=None):
+        """Updates a minimum bandwidth rule."""
+        return self.put(self.qos_minimum_bandwidth_rule_path %
+                        (policy, rule), body=body)
+
+    def delete_minimum_bandwidth_rule(self, rule, policy):
+        """Deletes a minimum bandwidth rule."""
+        return self.delete(self.qos_minimum_bandwidth_rule_path %
+                           (policy, rule))
+
     def create_flavor(self, body=None):
         """Creates a new Neutron service flavor."""
         return self.post(self.flavors_path, body=body)
@@ -1628,7 +1783,7 @@ class Client(ClientBase):
         return self.delete(self.flavor_path % (flavor))
 
     def list_flavors(self, retrieve_all=True, **_params):
-        """Fetches a list of all Neutron service flavors for a tenant."""
+        """Fetches a list of all Neutron service flavors for a project."""
         return self.list('flavors', self.flavors_path, retrieve_all,
                          **_params)
 
@@ -1678,18 +1833,30 @@ class Client(ClientBase):
         return self.list('availability_zones', self.availability_zones_path,
                          retrieve_all, **_params)
 
-    def get_auto_allocated_topology(self, tenant_id, **_params):
-        """Fetch information about a tenant's auto-allocated topology."""
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def get_auto_allocated_topology(self, project_id, **_params):
+        """Fetch information about a project's auto-allocated topology."""
         return self.get(
-            self.auto_allocated_topology_path % tenant_id,
+            self.auto_allocated_topology_path % project_id,
             params=_params)
 
-    def validate_auto_allocated_topology_requirements(self, tenant_id):
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def delete_auto_allocated_topology(self, project_id, **_params):
+        """Delete a project's auto-allocated topology."""
+        return self.delete(
+            self.auto_allocated_topology_path % project_id,
+            params=_params)
+
+    @debtcollector.renames.renamed_kwarg(
+        'tenant_id', 'project_id', replace=True)
+    def validate_auto_allocated_topology_requirements(self, project_id):
         """Validate requirements for getting an auto-allocated topology."""
-        return self.get_auto_allocated_topology(tenant_id, fields=['dry-run'])
+        return self.get_auto_allocated_topology(project_id, fields=['dry-run'])
 
     def list_bgp_speakers(self, retrieve_all=True, **_params):
-        """Fetches a list of all BGP speakers for a tenant."""
+        """Fetches a list of all BGP speakers for a project."""
         return self.list('bgp_speakers', self.bgp_speakers_path, retrieve_all,
                          **_params)
 
@@ -1782,6 +1949,39 @@ class Client(ClientBase):
     def remove_tag_all(self, resource_type, resource_id, **_params):
         """Remove all tags on the resource."""
         return self.delete(self.tags_path % (resource_type, resource_id))
+
+    def create_trunk(self, body=None):
+        """Create a trunk port."""
+        return self.post(self.trunks_path, body=body)
+
+    def update_trunk(self, trunk, body=None):
+        """Update a trunk port."""
+        return self.put(self.trunk_path % trunk, body=body)
+
+    def delete_trunk(self, trunk):
+        """Delete a trunk port."""
+        return self.delete(self.trunk_path % (trunk))
+
+    def list_trunks(self, retrieve_all=True, **_params):
+        """Fetch a list of all trunk ports."""
+        return self.list('trunks', self.trunks_path, retrieve_all,
+                         **_params)
+
+    def show_trunk(self, trunk, **_params):
+        """Fetch information for a certain trunk port."""
+        return self.get(self.trunk_path % (trunk), params=_params)
+
+    def trunk_add_subports(self, trunk, body=None):
+        """Add specified subports to the trunk."""
+        return self.put(self.subports_add_path % (trunk), body=body)
+
+    def trunk_remove_subports(self, trunk, body=None):
+        """Removes specified subports from the trunk."""
+        return self.put(self.subports_remove_path % (trunk), body=body)
+
+    def trunk_get_subports(self, trunk, **_params):
+        """Fetch a list of all subports attached to given trunk."""
+        return self.get(self.subports_path % (trunk), params=_params)
 
     def __init__(self, **kwargs):
         """Initialize a new client for the Neutron v2.0 API."""

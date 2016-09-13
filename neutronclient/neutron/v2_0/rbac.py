@@ -14,6 +14,7 @@
 #    under the License.
 
 from neutronclient._i18n import _
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV20
 
 # key=object_type: value={key=resource, value=cmd_resource}
@@ -66,13 +67,16 @@ class CreateRBACPolicy(neutronV20.CreateCommand):
         parser.add_argument(
             '--type', choices=RBAC_OBJECTS.keys(),
             required=True,
+            type=utils.convert_to_lowercase,
             help=_('Type of the object that RBAC policy affects.'))
         parser.add_argument(
             '--target-tenant',
+            default='*',
             help=_('ID of the tenant to which the RBAC '
                    'policy will be enforced.'))
         parser.add_argument(
             '--action', choices=['access_as_external', 'access_as_shared'],
+            type=utils.convert_to_lowercase,
             required=True,
             help=_('Action for the RBAC policy.'))
 

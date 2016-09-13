@@ -26,7 +26,7 @@ def _format_prefixes(subnetpool):
         return subnetpool['prefixes']
 
 
-def add_updatable_arguments(parser):
+def add_updatable_arguments(parser, for_create=False):
     parser.add_argument(
         '--description',
         help=_('Description of subnetpool.'))
@@ -42,6 +42,7 @@ def add_updatable_arguments(parser):
     parser.add_argument(
         '--pool-prefix',
         action='append', dest='prefixes',
+        required=for_create,
         help=_('Subnetpool prefixes (This option can be repeated).'))
     utils.add_boolean_argument(
         parser, '--is-default',
@@ -49,7 +50,7 @@ def add_updatable_arguments(parser):
                '(True meaning default).'))
 
 
-def updatable_args2body(parsed_args, body, for_create=True):
+def updatable_args2body(parsed_args, body):
     neutronV20.update_dict(parsed_args, body,
                            ['name', 'prefixes', 'default_prefixlen',
                             'min_prefixlen', 'max_prefixlen', 'is_default',
@@ -79,7 +80,7 @@ class CreateSubnetPool(neutronV20.CreateCommand):
     resource = 'subnetpool'
 
     def add_known_arguments(self, parser):
-        add_updatable_arguments(parser)
+        add_updatable_arguments(parser, for_create=True)
         parser.add_argument(
             '--shared',
             action='store_true',
@@ -87,13 +88,13 @@ class CreateSubnetPool(neutronV20.CreateCommand):
         parser.add_argument(
             'name',
             metavar='NAME',
-            help=_('Name of subnetpool to create.'))
+            help=_('Name of the subnetpool to be created.'))
         parser.add_argument(
             '--address-scope',
             metavar='ADDRSCOPE',
             help=_('ID or name of the address scope with which the subnetpool '
                    'is associated. Prefixes must be unique across address '
-                   'scopes'))
+                   'scopes.'))
 
     def args2body(self, parsed_args):
         body = {'prefixes': parsed_args.prefixes}
@@ -124,22 +125,22 @@ class UpdateSubnetPool(neutronV20.UpdateCommand):
     def add_known_arguments(self, parser):
         add_updatable_arguments(parser)
         parser.add_argument('--name',
-                            help=_('Name of subnetpool to update.'))
+                            help=_('Updated name of the subnetpool.'))
         addrscope_args = parser.add_mutually_exclusive_group()
         addrscope_args.add_argument('--address-scope',
                                     metavar='ADDRSCOPE',
                                     help=_('ID or name of the address scope '
                                            'with which the subnetpool is '
                                            'associated. Prefixes must be '
-                                           'unique across address scopes'))
+                                           'unique across address scopes.'))
         addrscope_args.add_argument('--no-address-scope',
                                     action='store_true',
                                     help=_('Detach subnetpool from the '
-                                           'address scope'))
+                                           'address scope.'))
 
     def args2body(self, parsed_args):
         body = {}
-        updatable_args2body(parsed_args, body, for_create=False)
+        updatable_args2body(parsed_args, body)
 
         # Parse and update for "address-scope" option/s
         if parsed_args.no_address_scope:

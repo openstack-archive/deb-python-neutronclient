@@ -20,6 +20,7 @@ from neutronclient.neutron import v2_0 as neutronV20
 
 
 class Purge(neutronV20.NeutronCommand):
+    """Delete all resources that belong to a given tenant."""
 
     def _pluralize(self, string):
         return string + 's'
@@ -48,7 +49,9 @@ class Purge(neutronV20.NeutronCommand):
     def _delete_resource(self, neutron_client, resource_type, resource):
         resource_id = resource['id']
         if resource_type == 'port':
-            if resource.get('device_owner', '') == 'network:router_interface':
+            router_interface_owners = ['network:router_interface',
+                                       'network:router_interface_distributed']
+            if resource.get('device_owner', '') in router_interface_owners:
                 body = {'port_id': resource_id}
                 neutron_client.remove_interface_router(resource['device_id'],
                                                        body)

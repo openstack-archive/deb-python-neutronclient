@@ -17,7 +17,22 @@
 from oslo_serialization import jsonutils
 
 from neutronclient._i18n import _
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV20
+
+
+def _add_common_args(parser):
+    parser.add_argument(
+        '--description',
+        help=_('Description of the load balancer.'))
+    parser.add_argument(
+        '--name', metavar='NAME',
+        help=_('Name of the load balancer.'))
+
+
+def _parse_common_args(body, parsed_args):
+    neutronV20.update_dict(parsed_args, body,
+                           ['name', 'description'])
 
 
 class ListLoadBalancer(neutronV20.ListCommand):
@@ -40,25 +55,19 @@ class CreateLoadBalancer(neutronV20.CreateCommand):
     """LBaaS v2 Create a loadbalancer."""
 
     resource = 'loadbalancer'
-    allow_names = True
 
     def add_known_arguments(self, parser):
-        parser.add_argument(
-            '--description',
-            help=_('Description of the load balancer.'))
+        _add_common_args(parser)
         parser.add_argument(
             '--admin-state-down',
             dest='admin_state', action='store_false',
             help=_('Set admin state up to false.'))
         parser.add_argument(
-            '--name', metavar='NAME',
-            help=_('Name of the load balancer.'))
-        parser.add_argument(
             '--provider',
-            help=_('Provider name of load balancer service.'))
+            help=_('Provider name of the load balancer service.'))
         parser.add_argument(
             '--flavor',
-            help=_('ID or name of flavor.'))
+            help=_('ID or name of the flavor.'))
         parser.add_argument(
             '--vip-address',
             help=_('VIP address for the load balancer.'))
@@ -77,8 +86,8 @@ class CreateLoadBalancer(neutronV20.CreateCommand):
             body['flavor_id'] = _flavor_id
 
         neutronV20.update_dict(parsed_args, body,
-                               ['description', 'provider', 'vip_address',
-                                'tenant_id', 'name'])
+                               ['provider', 'vip_address', 'tenant_id'])
+        _parse_common_args(body, parsed_args)
         return {self.resource: body}
 
 
@@ -86,14 +95,26 @@ class UpdateLoadBalancer(neutronV20.UpdateCommand):
     """LBaaS v2 Update a given loadbalancer."""
 
     resource = 'loadbalancer'
-    allow_names = True
+
+    def add_known_arguments(self, parser):
+        utils.add_boolean_argument(
+            parser, '--admin-state-up',
+            help=_('Update the administrative state of '
+                   'the load balancer (True meaning "Up").'))
+        _add_common_args(parser)
+
+    def args2body(self, parsed_args):
+        body = {}
+        _parse_common_args(body, parsed_args)
+        neutronV20.update_dict(parsed_args, body,
+                               ['admin_state_up'])
+        return {self.resource: body}
 
 
 class DeleteLoadBalancer(neutronV20.DeleteCommand):
     """LBaaS v2 Delete a given loadbalancer."""
 
     resource = 'loadbalancer'
-    allow_names = True
 
 
 class RetrieveLoadBalancerStats(neutronV20.ShowCommand):
@@ -125,7 +146,7 @@ class RetrieveLoadBalancerStats(neutronV20.ShowCommand):
             # | ...                | ...   |
             # +--------------------+-------+
             # it has two columns and the Filed column is alphabetical,
-            # here covert the data dict to the 1-1 vector format below:
+            # here convert the data dict to the 1-1 vector format below:
             # [(field1, field2, field3, ...), (value1, value2, value3, ...)]
             return list(zip(*sorted(stats.items())))
 
@@ -147,7 +168,7 @@ class RetrieveLoadBalancerStatus(neutronV20.NeutronCommand):
         return parser
 
     def take_action(self, parsed_args):
-        self.log.debug('run(%s)' % parsed_args)
+        self.log.debug('run(%s)', parsed_args)
         neutron_client = self.get_client()
         lb_id = neutronV20.find_resourceid_by_name_or_id(
             neutron_client, self.resource, parsed_args.loadbalancer)

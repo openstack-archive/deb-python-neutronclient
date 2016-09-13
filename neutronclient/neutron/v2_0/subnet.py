@@ -184,10 +184,12 @@ class CreateSubnet(neutronV20.CreateCommand):
             help=_('CIDR of subnet to create.'))
         parser.add_argument(
             '--ipv6-ra-mode',
+            type=utils.convert_to_lowercase,
             choices=['dhcpv6-stateful', 'dhcpv6-stateless', 'slaac'],
             help=_('IPv6 RA (Router Advertisement) mode.'))
         parser.add_argument(
             '--ipv6-address-mode',
+            type=utils.convert_to_lowercase,
             choices=['dhcpv6-stateful', 'dhcpv6-stateless', 'slaac'],
             help=_('IPv6 address mode.'))
         parser.add_argument(
@@ -201,6 +203,9 @@ class CreateSubnet(neutronV20.CreateCommand):
         parser.add_argument(
             '--prefixlen', metavar='PREFIX_LENGTH',
             help=_('Prefix length for subnet allocation from subnetpool.'))
+        parser.add_argument(
+            '--segment', metavar='SEGMENT',
+            help=_('ID of segment with which this subnet will be associated.'))
 
     def args2body(self, parsed_args):
         _network_id = neutronV20.find_resourceid_by_name_or_id(
@@ -212,6 +217,9 @@ class CreateSubnet(neutronV20.CreateCommand):
         ip_version = parsed_args.ip_version
         if parsed_args.use_default_subnetpool:
             body['use_default_subnetpool'] = True
+        if parsed_args.segment:
+            body['segment_id'] = neutronV20.find_resourceid_by_name_or_id(
+                self.get_client(), 'segment', parsed_args.segment)
         if parsed_args.subnetpool:
             if parsed_args.subnetpool == 'None':
                 _subnetpool_id = None
@@ -237,9 +245,9 @@ class CreateSubnet(neutronV20.CreateCommand):
                 self.log.warning(_("An IPv%(ip)d subnet with a %(cidr)s CIDR "
                                    "will have only one usable IP address so "
                                    "the device attached to it will not have "
-                                   "any IP connectivity.")
-                                 % {"ip": ip_version,
-                                    "cidr": unusable_cidr})
+                                   "any IP connectivity."),
+                                 {"ip": ip_version,
+                                  "cidr": unusable_cidr})
 
         updatable_args2body(parsed_args, body, ip_version=ip_version)
         if parsed_args.tenant_id:

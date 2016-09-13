@@ -25,13 +25,14 @@ class CLITestV20VpnIpsecPolicyJSON(test_cli20.CLITestV20Base):
 
     non_admin_status_resources = ['ipsecpolicy']
 
-    def test_create_ipsecpolicy_all_params(self):
+    def _test_create_ipsecpolicy_all_params(self, auth='sha1',
+                                            expected_exc=None):
         # vpn-ipsecpolicy-create all params with dashes.
         resource = 'ipsecpolicy'
         cmd = ipsecpolicy.CreateIPsecPolicy(test_cli20.MyApp(sys.stdout), None)
         name = 'ipsecpolicy1'
         description = 'first-ipsecpolicy1'
-        auth_algorithm = 'sha1'
+        auth_algorithm = auth
         encryption_algorithm = 'aes-256'
         encapsulation_mode = 'tunnel'
         pfs = 'group5'
@@ -66,9 +67,23 @@ class CLITestV20VpnIpsecPolicyJSON(test_cli20.CLITestV20Base):
             },
         }
 
-        self._test_create_resource(resource, cmd, name, my_id, args,
-                                   position_names, position_values,
-                                   extra_body=extra_body)
+        if not expected_exc:
+            self._test_create_resource(resource, cmd, name, my_id, args,
+                                       position_names, position_values,
+                                       extra_body=extra_body)
+        else:
+            self.assertRaises(
+                expected_exc,
+                self._test_create_resource,
+                resource, cmd, name, my_id, args,
+                position_names, position_values,
+                extra_body=extra_body)
+
+    def test_create_ipsecpolicy_all_params(self):
+        self._test_create_ipsecpolicy_all_params()
+
+    def test_create_ipsecpolicy_auth_sha256(self):
+        self._test_create_ipsecpolicy_all_params(auth='sha256')
 
     def test_create_ipsecpolicy_with_limited_params(self):
         # vpn-ipsecpolicy-create with limited params.
@@ -194,13 +209,26 @@ class CLITestV20VpnIpsecPolicyJSON(test_cli20.CLITestV20Base):
         self._test_show_resource(resource, cmd, self.test_id,
                                  args, ['id', 'name'])
 
-    def test_update_ipsecpolicy(self):
+    def test_update_ipsecpolicy_name(self):
         # vpn-ipsecpolicy-update myid --name newname --tags a b.
         resource = 'ipsecpolicy'
         cmd = ipsecpolicy.UpdateIPsecPolicy(test_cli20.MyApp(sys.stdout), None)
         self._test_update_resource(resource, cmd, 'myid',
                                    ['myid', '--name', 'newname'],
                                    {'name': 'newname', })
+
+    def test_update_ipsecpolicy_other_params(self):
+        # vpn-ipsecpolicy-update myid --transform-protocol esp
+        # --pfs group14  --encapsulation-mode transport
+        resource = 'ipsecpolicy'
+        cmd = ipsecpolicy.UpdateIPsecPolicy(test_cli20.MyApp(sys.stdout), None)
+        self._test_update_resource(resource, cmd, 'myid',
+                                   ['myid', '--transform-protocol', 'esp',
+                                    '--pfs', 'group14',
+                                    '--encapsulation-mode', 'transport'],
+                                   {'transform_protocol': 'esp',
+                                    'pfs': 'group14',
+                                    'encapsulation_mode': 'transport', })
 
     def test_delete_ipsecpolicy(self):
         # vpn-ipsecpolicy-delete my-id.

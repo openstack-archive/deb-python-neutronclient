@@ -18,7 +18,7 @@ import contextlib
 import itertools
 import sys
 
-import fixtures
+import mock
 from mox3 import mox
 from oslo_utils import encodeutils
 from oslotest import base
@@ -66,11 +66,19 @@ class FakeStdout(object):
         return result
 
 
+class MyRequest(requests.Request):
+    def __init__(self, method=None):
+        self.method = method
+
+
 class MyResp(requests.Response):
-    def __init__(self, status_code, headers=None, reason=None):
+    def __init__(self, status_code, headers=None, reason=None,
+                 request=None, url=None):
         self.status_code = status_code
         self.headers = headers or {}
         self.reason = reason
+        self.request = request or MyRequest()
+        self.url = url
 
 
 class MyApp(object):
@@ -182,9 +190,6 @@ class CLITestV20Base(base.BaseTestCase):
                          cmd_resource=None, parent_id=None):
         return name_or_id
 
-    def _get_attr_metadata(self):
-        return self.metadata
-
     def setUp(self, plurals=None):
         """Prepare the test environment."""
         super(CLITestV20Base, self).setUp()
@@ -195,16 +200,14 @@ class CLITestV20Base(base.BaseTestCase):
         self.mox = mox.Mox()
         self.endurl = ENDURL
         self.fake_stdout = FakeStdout()
-        self.useFixture(fixtures.MonkeyPatch('sys.stdout', self.fake_stdout))
-        self.useFixture(fixtures.MonkeyPatch(
-            'neutronclient.neutron.v2_0.find_resourceid_by_name_or_id',
-            self._find_resourceid))
-        self.useFixture(fixtures.MonkeyPatch(
-            'neutronclient.neutron.v2_0.find_resourceid_by_id',
-            self._find_resourceid))
-        self.useFixture(fixtures.MonkeyPatch(
-            'neutronclient.v2_0.client.Client.get_attr_metadata',
-            self._get_attr_metadata))
+
+        self.addCleanup(mock.patch.stopall)
+        mock.patch('sys.stdout', new=self.fake_stdout).start()
+        mock.patch('neutronclient.neutron.v2_0.find_resourceid_by_name_or_id',
+                   new=self._find_resourceid).start()
+        mock.patch('neutronclient.neutron.v2_0.find_resourceid_by_id',
+                   new=self._find_resourceid).start()
+
         self.client = client.Client(token=TOKEN, endpoint_url=self.endurl)
         self.client.format = self.format
 
@@ -255,8 +258,7 @@ class CLITestV20Base(base.BaseTestCase):
             ress[resource].update({'name': name})
         resstr = self.client.serialize(ress)
         # url method body
-        resource_plural = neutronV2_0._get_resource_plural(cmd_resource,
-                                                           self.client)
+        resource_plural = self.client.get_resource_plural(cmd_resource)
         path = getattr(self.client, resource_plural + "_path")
         if parent_id:
             path = path % parent_id
@@ -510,14 +512,7 @@ class CLITestV20Base(base.BaseTestCase):
         self.assertIn(myid, _str)
         self.assertIn('myname', _str)
 
-    def _test_delete_resource(self, resource, cmd, myid, args,
-                              cmd_resource=None, parent_id=None):
-        self.mox.StubOutWithMock(cmd, "get_client")
-        self.mox.StubOutWithMock(self.client.httpclient, "request")
-        cmd.get_client().MultipleTimes().AndReturn(self.client)
-        if not cmd_resource:
-            cmd_resource = resource
-        path = getattr(self.client, cmd_resource + "_path")
+    def _test_set_path_and_delete(self, path, parent_id, myid):
         if parent_id:
             path = path % (parent_id, myid)
         else:
@@ -527,6 +522,20 @@ class CLITestV20Base(base.BaseTestCase):
             body=None,
             headers=mox.ContainsKeyValue(
                 'X-Auth-Token', TOKEN)).AndReturn((MyResp(204), None))
+
+    def _test_delete_resource(self, resource, cmd, myid, args,
+                              cmd_resource=None, parent_id=None,
+                              extra_id=None):
+        self.mox.StubOutWithMock(cmd, "get_client")
+        self.mox.StubOutWithMock(self.client.httpclient, "request")
+        cmd.get_client().MultipleTimes().AndReturn(self.client)
+        if not cmd_resource:
+            cmd_resource = resource
+        path = getattr(self.client, cmd_resource + "_path")
+        self._test_set_path_and_delete(path, parent_id, myid)
+        # extra_id is used to test for bulk_delete
+        if extra_id:
+            self._test_set_path_and_delete(path, parent_id, extra_id)
         self.mox.ReplayAll()
         cmd_parser = cmd.get_parser("delete_" + cmd_resource)
         shell.run_command(cmd, cmd_parser, args)
@@ -534,6 +543,8 @@ class CLITestV20Base(base.BaseTestCase):
         self.mox.UnsetStubs()
         _str = self.fake_stdout.make_string()
         self.assertIn(myid, _str)
+        if extra_id:
+            self.assertIn(extra_id, _str)
 
     def _test_update_resource_action(self, resource, cmd, myid, action, args,
                                      body, retval=None, cmd_resource=None):

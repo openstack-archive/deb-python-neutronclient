@@ -14,10 +14,61 @@
 #    under the License.
 #
 
+import argparse
+
 from neutronclient._i18n import _
 from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronv20
 from neutronclient.neutron.v2_0.vpn import utils as vpn_utils
+
+
+def add_common_args(parser, is_create=True):
+    parser.add_argument(
+        '--auth-algorithm',
+        default='sha1' if is_create else argparse.SUPPRESS,
+        type=utils.convert_to_lowercase,
+        help=_('Authentication algorithm for IPsec policy, default:sha1.'))
+    parser.add_argument(
+        '--description',
+        help=_('Description of the IPsec policy.'))
+    parser.add_argument(
+        '--encapsulation-mode',
+        default='tunnel' if is_create else argparse.SUPPRESS,
+        choices=['tunnel', 'transport'],
+        type=utils.convert_to_lowercase,
+        help=_('Encapsulation mode for IPsec policy, default:tunnel.'))
+    parser.add_argument(
+        '--encryption-algorithm',
+        default='aes-128' if is_create else argparse.SUPPRESS,
+        type=utils.convert_to_lowercase,
+        help=_('Encryption algorithm for IPsec policy, default:aes-128.'))
+    parser.add_argument(
+        '--lifetime',
+        metavar="units=UNITS,value=VALUE",
+        type=utils.str2dict_type(optional_keys=['units', 'value']),
+        help=vpn_utils.lifetime_help("IPsec"))
+    parser.add_argument(
+        '--pfs',
+        default='group5' if is_create else argparse.SUPPRESS,
+        type=utils.convert_to_lowercase,
+        help=_('Perfect Forward Secrecy for IPsec policy, default:group5.'))
+    parser.add_argument(
+        '--transform-protocol',
+        default='esp' if is_create else argparse.SUPPRESS,
+        type=utils.convert_to_lowercase,
+        choices=['esp', 'ah', 'ah-esp'],
+        help=_('Transform protocol for IPsec policy, default:esp.'))
+
+
+def parse_common_args2body(parsed_args, body):
+    neutronv20.update_dict(parsed_args, body,
+                           ['auth_algorithm', 'encryption_algorithm',
+                            'encapsulation_mode', 'transform_protocol',
+                            'pfs', 'name', 'description', 'tenant_id'])
+    if parsed_args.lifetime:
+        vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
+        body['lifetime'] = parsed_args.lifetime
+    return body
 
 
 class ListIPsecPolicy(neutronv20.ListCommand):
@@ -42,51 +93,16 @@ class CreateIPsecPolicy(neutronv20.CreateCommand):
     """Create an IPsec policy."""
 
     resource = 'ipsecpolicy'
+    help_resource = 'IPsec policy'
 
     def add_known_arguments(self, parser):
         parser.add_argument(
-            '--description',
-            help=_('Description of the IPsec policy.'))
-        parser.add_argument(
-            '--transform-protocol',
-            default='esp', choices=['esp', 'ah', 'ah-esp'],
-            help=_('Transform protocol in lowercase, default:esp'))
-        parser.add_argument(
-            '--auth-algorithm',
-            default='sha1', choices=['sha1'],
-            help=_('Authentication algorithm in lowercase, default:sha1'))
-        parser.add_argument(
-            '--encryption-algorithm',
-            default='aes-128',
-            help=_('Encryption algorithm in lowercase, default:aes-128'))
-        parser.add_argument(
-            '--encapsulation-mode',
-            default='tunnel', choices=['tunnel', 'transport'],
-            help=_('Encapsulation mode in lowercase, default:tunnel'))
-        parser.add_argument(
-            '--pfs',
-            default='group5', choices=['group2', 'group5', 'group14'],
-            help=_('Perfect Forward Secrecy in lowercase, default:group5'))
-        parser.add_argument(
-            '--lifetime',
-            metavar="units=UNITS,value=VALUE",
-            type=utils.str2dict_type(optional_keys=['units', 'value']),
-            help=vpn_utils.lifetime_help("IPsec"))
-        parser.add_argument(
             'name', metavar='NAME',
             help=_('Name of the IPsec policy.'))
+        add_common_args(parser)
 
     def args2body(self, parsed_args):
-
-        body = {}
-        neutronv20.update_dict(parsed_args, body,
-                               ['auth_algorithm', 'encryption_algorithm',
-                                'encapsulation_mode', 'transform_protocol',
-                                'pfs', 'name', 'description', 'tenant_id'])
-        if parsed_args.lifetime:
-            vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['lifetime'] = parsed_args.lifetime
-        return {'ipsecpolicy': body}
+        return {'ipsecpolicy': parse_common_args2body(parsed_args, body={})}
 
 
 class UpdateIPsecPolicy(neutronv20.UpdateCommand):
@@ -97,18 +113,12 @@ class UpdateIPsecPolicy(neutronv20.UpdateCommand):
 
     def add_known_arguments(self, parser):
         parser.add_argument(
-            '--lifetime',
-            metavar="units=UNITS,value=VALUE",
-            type=utils.str2dict_type(optional_keys=['units', 'value']),
-            help=vpn_utils.lifetime_help("IPsec"))
+            '--name',
+            help=_('Updated name of the IPsec policy.'))
+        add_common_args(parser, is_create=False)
 
     def args2body(self, parsed_args):
-
-        body = {}
-        if parsed_args.lifetime:
-            vpn_utils.validate_lifetime_dict(parsed_args.lifetime)
-            body['lifetime'] = parsed_args.lifetime
-        return {'ipsecpolicy': body}
+        return {'ipsecpolicy': parse_common_args2body(parsed_args, body={})}
 
 
 class DeleteIPsecPolicy(neutronv20.DeleteCommand):

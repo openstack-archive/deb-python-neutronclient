@@ -13,6 +13,7 @@
 # under the License.
 
 from neutronclient._i18n import _
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronv20
 
 
@@ -40,10 +41,10 @@ class CreateMeteringLabel(neutronv20.CreateCommand):
     def add_known_arguments(self, parser):
         parser.add_argument(
             'name', metavar='NAME',
-            help=_('Name of metering label to create.'))
+            help=_('Name of the metering label to be created.'))
         parser.add_argument(
             '--description',
-            help=_('Description of metering label to create.'))
+            help=_('Description of the metering label to be created.'))
         parser.add_argument(
             '--shared',
             action='store_true',
@@ -86,13 +87,14 @@ class CreateMeteringLabelRule(neutronv20.CreateCommand):
     def add_known_arguments(self, parser):
         parser.add_argument(
             'label_id', metavar='LABEL',
-            help=_('Id or Name of the label.'))
+            help=_('ID or name of the label.'))
         parser.add_argument(
             'remote_ip_prefix', metavar='REMOTE_IP_PREFIX',
             help=_('CIDR to match on.'))
         parser.add_argument(
             '--direction',
             default='ingress', choices=['ingress', 'egress'],
+            type=utils.convert_to_lowercase,
             help=_('Direction of traffic, default: ingress.'))
         parser.add_argument(
             '--excluded',

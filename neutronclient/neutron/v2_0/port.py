@@ -113,7 +113,7 @@ class ListRouterPort(neutronV20.ListCommand):
         parser = super(ListRouterPort, self).get_parser(prog_name)
         parser.add_argument(
             'id', metavar='ROUTER',
-            help=_('ID or name of router to look up.'))
+            help=_('ID or name of the router to look up.'))
         return parser
 
     def take_action(self, parsed_args):
@@ -210,7 +210,7 @@ class UpdatePortAllowedAddressPair(object):
             type=utils.str2dict_type(
                 required_keys=['ip_address'],
                 optional_keys=['mac_address']),
-            help=_('Allowed address pair associated with the port.'
+            help=_('Allowed address pair associated with the port. '
                    'You can repeat this option.'))
         group_aap.add_argument(
             '--no-allowed-address-pairs',
@@ -253,11 +253,13 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
                     '| normal | baremetal>',
             choices=['direct', 'direct-physical', 'macvtap',
                      'normal', 'baremetal'],
+            type=utils.convert_to_lowercase,
             help=_('VNIC type for this port.'))
         parser.add_argument(
             '--vnic_type',
             choices=['direct', 'direct-physical', 'macvtap',
                      'normal', 'baremetal'],
+            type=utils.convert_to_lowercase,
             help=argparse.SUPPRESS)
         parser.add_argument(
             '--binding-profile',
@@ -272,7 +274,7 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
 
         parser.add_argument(
             'network_id', metavar='NETWORK',
-            help=_('Network ID or name this port belongs to.'))
+            help=_('ID or name of the network this port belongs to.'))
         dns.add_dns_argument_create(parser, self.resource, 'name')
 
     def args2body(self, parsed_args):
