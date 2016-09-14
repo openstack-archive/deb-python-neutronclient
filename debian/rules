@@ -1,42 +1,17 @@
 #!/usr/bin/make -f
 
-PYTHONS:=$(shell pyversions -vr)
-PYTHON3S:=$(shell py3versions -vr)
-
 include /usr/share/openstack-pkg-tools/pkgos.make
-export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
 	dh $@ --buildsystem=python_distutils --with python2,python3
 
 override_dh_auto_install:
-	set -e ; for pyvers in $(PYTHONS); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python-neutronclient; \
-	done
-	set -e ; for pyvers in $(PYTHON3S); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python3-neutronclient; \
-	done
-	rm -f $(CURDIR)/debian/python*/usr/lib/python*/dist-packages/*.pth
+	pkgos-dh_auto_install
 	install -D -m 0644 tools/neutron.bash_completion $(CURDIR)/debian/python-neutronclient-doc/usr/share/bash-completion/completions/neutron
-	mv $(CURDIR)/debian/python-neutronclient/usr/bin/neutron $(CURDIR)/debian/python-neutronclient/usr/bin/python2-neutron
-	mv $(CURDIR)/debian/python3-neutronclient/usr/bin/neutron $(CURDIR)/debian/python3-neutronclient/usr/bin/python3-neutron
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	@echo "===> Running tests"
-	set -e ; set -x ; for i in 2.7 $(PYTHON3S) ; do \
-		PYMAJOR=`echo $$i | cut -d'.' -f1` ; \
-		echo "===> Testing with python$$i (python$$PYMAJOR)" ; \
-		rm -rf .testrepository ; \
-		testr-python$$PYMAJOR init ; \
-		TEMP_REZ=`mktemp -t` ; \
-		PYTHONPATH=$(CURDIR) PYTHON=python$$i testr-python$$PYMAJOR run --subunit 'neutronclient\.tests\.unit\.(?!(.*test_cli20_port\.CLITestV20PortJSON\.test_list_ports_with_fixed_ips_in_csv.*|.*test_cli20_port\.CLITestV20PortXML\.test_list_ports_with_fixed_ips_in_csv.*))' | tee $$TEMP_REZ | subunit2pyunit ; \
-		cat $$TEMP_REZ | subunit-filter -s --no-passthrough | subunit-stats ; \
-		rm -f $$TEMP_REZ ; \
-		testr-python$$PYMAJOR slowest ; \
-	done
+	pkgos-dh_auto_test 'neutronclient\.tests\.unit\.(?!(.*test_cli20_port\.CLITestV20PortJSON\.test_list_ports_with_fixed_ips_in_csv.*|.*test_cli20_port\.CLITestV20PortXML\.test_list_ports_with_fixed_ips_in_csv.*))'
 endif
 
 override_dh_auto_clean:
