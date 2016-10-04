@@ -1,6 +1,7 @@
-python-neutronclient (1:6.0.0-2) UNRELEASED; urgency=medium
+python-neutronclient (1:6.0.0-2) unstable; urgency=medium
 
   [ Thomas Goirand ]
+  * Uploading to unstable.
   * Using pkgos-dh_auto_install from openstack-pkg-tools >= 52~.
   * Fixed oslotest EPOCH.
 
