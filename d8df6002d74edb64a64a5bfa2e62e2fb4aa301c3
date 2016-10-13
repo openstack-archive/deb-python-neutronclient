@@ -1,0 +1,10 @@
+Code-Review+1: Sergey Belous <sbelous@mirantis.com>
+Code-Review+2: Kevin Benton <kevin@benton.pub>
+Code-Review+2: Carl Baldwin <carl@ecbaldwin.net>
+Workflow+1: Carl Baldwin <carl@ecbaldwin.net>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 12 Oct 2016 18:51:46 +0000
+Reviewed-on: https://review.openstack.org/371297
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
