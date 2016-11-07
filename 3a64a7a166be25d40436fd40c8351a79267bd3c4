@@ -1,0 +1,11 @@
+Code-Review+2: Henry Gessau <HenryG@gessau.net>
+Code-Review+1: vikram.choudhary <vikram.choudhary@huawei.com>
+Code-Review+1: Reedip <reedip.banerjee@nectechnologies.in>
+Code-Review+2: Kevin Benton <kevin@benton.pub>
+Workflow+1: Kevin Benton <kevin@benton.pub>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 05 Nov 2016 21:38:42 +0000
+Reviewed-on: https://review.openstack.org/393903
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
