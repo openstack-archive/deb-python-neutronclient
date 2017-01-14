@@ -1,0 +1,12 @@
+Code-Review+2: Abhishek Raut <rauta@vmware.com>
+Code-Review+1: Sridar Kandaswamy <skandasw@cisco.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Code-Review+2: Nate Johnston <openstacknate@gmail.com>
+Workflow+1: Nate Johnston <openstacknate@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 13 Jan 2017 16:21:26 +0000
+Reviewed-on: https://review.openstack.org/351582
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
