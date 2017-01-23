@@ -1,0 +1,11 @@
+Code-Review+1: Dariusz Smigiel <smigiel.dariusz@gmail.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Code-Review+2: Abhishek Raut <rauta@vmware.com>
+Workflow+1: Abhishek Raut <rauta@vmware.com>
+Code-Review+1: Sindhu Devale <sindhu.devale@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 20 Jan 2017 23:02:31 +0000
+Reviewed-on: https://review.openstack.org/401824
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
