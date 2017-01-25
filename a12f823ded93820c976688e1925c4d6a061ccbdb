@@ -1,0 +1,11 @@
+Code-Review+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Code-Review+1: vikram.choudhary <vikram.choudhary@huawei.com>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 24 Jan 2017 22:23:40 +0000
+Reviewed-on: https://review.openstack.org/386344
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
