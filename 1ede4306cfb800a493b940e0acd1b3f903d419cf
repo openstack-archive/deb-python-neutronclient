@@ -1,0 +1,9 @@
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 10 Feb 2017 18:43:25 +0000
+Reviewed-on: https://review.openstack.org/431905
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
