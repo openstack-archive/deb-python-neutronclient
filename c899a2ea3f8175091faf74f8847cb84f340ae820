@@ -1,0 +1,9 @@
+Code-Review+2: Brian Haley <haleyb.dev@gmail.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 09 Mar 2017 23:40:44 +0000
+Reviewed-on: https://review.openstack.org/443936
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/stable/newton
