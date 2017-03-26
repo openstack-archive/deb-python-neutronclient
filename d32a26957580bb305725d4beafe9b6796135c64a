@@ -1,0 +1,9 @@
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Workflow+1: Akihiro Motoki <amotoki@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 26 Mar 2017 21:01:54 +0000
+Reviewed-on: https://review.openstack.org/448747
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
