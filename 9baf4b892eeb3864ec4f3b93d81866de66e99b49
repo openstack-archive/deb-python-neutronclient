@@ -1,0 +1,9 @@
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Code-Review+2: Abhishek Raut <rauta@vmware.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 31 Mar 2017 03:03:15 +0000
+Reviewed-on: https://review.openstack.org/449786
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
