@@ -1,0 +1,13 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+1: Bartek Żurawski <bartekzurawski1@gmail.com>
+Code-Review+1: Yushiro FURUKAWA <y.furukawa_2@jp.fujitsu.com>
+Code-Review+1: wanghongtaozz <wanghongtaozz@inspur.com>
+Code-Review-1: Reedip <reedip.banerjee@gmail.com>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Workflow+1: Akihiro Motoki <amotoki@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 01 Apr 2017 17:14:20 +0000
+Reviewed-on: https://review.openstack.org/345717
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
