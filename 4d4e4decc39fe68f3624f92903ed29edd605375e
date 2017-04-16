@@ -1,0 +1,11 @@
+Code-Review+2: YAMAMOTO Takashi <yamamoto@midokura.com>
+Code-Review+1: vikram.choudhary <vikram.choudhary@huawei.com>
+Code-Review+1: Carl Baldwin <carl@ecbaldwin.net>
+Code-Review+2: Kevin Benton <kevin@benton.pub>
+Workflow+1: Kevin Benton <kevin@benton.pub>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 16 Apr 2017 12:14:59 +0000
+Reviewed-on: https://review.openstack.org/352669
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
