@@ -1,0 +1,9 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+2: Ihar Hrachyshka <ihrachys@redhat.com>
+Workflow+1: Ihar Hrachyshka <ihrachys@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 16 May 2017 21:25:57 +0000
+Reviewed-on: https://review.openstack.org/464866
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/stable/ocata
