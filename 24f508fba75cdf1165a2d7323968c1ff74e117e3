@@ -1,0 +1,10 @@
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Code-Review+1: Cao Xuan Hoang <hoangcx@vn.fujitsu.com>
+Code-Review+2: YAMAMOTO Takashi <yamamoto@midokura.com>
+Workflow+1: Jakub Libosvar <jlibosva-redhat@email.cz>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 26 Jun 2017 13:56:29 +0000
+Reviewed-on: https://review.openstack.org/473903
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
