@@ -1,0 +1,9 @@
+Code-Review+2: garyk <gkotton@vmware.com>
+Code-Review+2: Kevin Benton <kevin@benton.pub>
+Workflow+1: Kevin Benton <kevin@benton.pub>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 30 Jun 2017 11:52:44 +0000
+Reviewed-on: https://review.openstack.org/474394
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
