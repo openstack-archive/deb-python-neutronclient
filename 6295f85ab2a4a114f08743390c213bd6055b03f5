@@ -1,0 +1,11 @@
+Code-Review+1: Nguyen Phuong An <AnNP@vn.fujitsu.com>
+Code-Review+1: Cao Xuan Hoang <hoangcx@vn.fujitsu.com>
+Code-Review+2: Abhishek Raut <rauta@vmware.com>
+Code-Review+2: Armando Migliaccio <armamig@gmail.com>
+Workflow+1: Armando Migliaccio <armamig@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 07 Jul 2017 21:16:19 +0000
+Reviewed-on: https://review.openstack.org/479635
+Project: openstack/deb-python-neutronclient
+Branch: refs/heads/master
