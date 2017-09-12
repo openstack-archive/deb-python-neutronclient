@@ -1,4 +1,0 @@
----
-features:
-  - The ``auto-allocated-topology-delete`` command allows users to
-    delete the auto allocated topology.
